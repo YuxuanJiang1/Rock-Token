@@ -11,3 +11,8 @@ dependencies = [
     "rich>=14.0",
     "numpy>=2.2",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
