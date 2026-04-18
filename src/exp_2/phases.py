@@ -17,11 +17,18 @@ from src.exp_2.utils import (
 )
 
 
-def run_phase1(student_model_name: str, output_dir: Path, max_new_tokens: int = 2048):
+def run_phase1(
+    student_model_name: str,
+    output_dir: Path,
+    max_new_tokens: int = 2048,
+    batch_size: int = 4,
+):
     """Generate student responses and save per-token log-probs.
 
-    Saves one file per sample to {output_dir}/student_data/sample_{i:03d}.pt
-    containing: sample_idx, prompt_length, full_ids, student_log_probs (float16).
+    Uses batched generation with left-padding for speed. After each batch,
+    extracts per-sample scores and saves individually for resume support.
+
+    Saves one file per sample to {output_dir}/student_data/sample_{i:03d}.pt.
     Skips samples whose files already exist (mid-phase resume).
     """
     student_data_dir = output_dir / "student_data"
@@ -38,21 +45,31 @@ def run_phase1(student_model_name: str, output_dir: Path, max_new_tokens: int = 
         print(f"Phase 1 complete ({len(existing)}/{len(dataset)} samples already exist)")
         return
 
-    print(f"Phase 1: {len(existing)}/{len(dataset)} done, {len(remaining)} remaining")
+    print(f"Phase 1: {len(existing)}/{len(dataset)} done, {len(remaining)} remaining (batch_size={batch_size})")
     model, tokenizer = load_model_and_tokenizer(student_model_name)
+    tokenizer.padding_side = "left"
 
     with Progress() as progress:
         task = progress.add_task("Phase 1: Student generation", total=len(remaining))
-        for i in remaining:
-            messages = format_prompt(dataset[i]["problem"], tokenizer)
-            prompt_text = tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
-            inputs = tokenizer(prompt_text, return_tensors="pt")
+
+        for batch_start in range(0, len(remaining), batch_size):
+            batch_indices = remaining[batch_start : batch_start + batch_size]
+            cur_batch_size = len(batch_indices)
+
+            # Tokenize batch with left-padding
+            batch_texts = []
+            for i in batch_indices:
+                messages = format_prompt(dataset[i]["problem"], tokenizer)
+                text = tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+                batch_texts.append(text)
+
+            inputs = tokenizer(batch_texts, return_tensors="pt", padding=True)
             input_ids = inputs.input_ids.to(model.device)
             attention_mask = inputs.attention_mask.to(model.device)
-            prompt_length = input_ids.shape[1]
 
+            # Batched generation with output_scores
             with torch.no_grad():
                 outputs = model.generate(
                     input_ids=input_ids,
@@ -63,27 +80,62 @@ def run_phase1(student_model_name: str, output_dir: Path, max_new_tokens: int = 
                     return_dict_in_generate=True,
                 )
 
-            full_ids = outputs.sequences[0].cpu()
-            gen_len = len(outputs.scores)
-            print(f"  Sample {i}: generated {gen_len} tokens")
+            # outputs.scores: tuple of (batch_size, vocab) tensors, one per gen step
+            # outputs.sequences: (batch_size, max_seq_len) — left-padded input + generated
 
-            # Stack generation scores: tuple of (1, vocab) -> (gen_len, vocab)
-            scores = torch.stack(
-                [s.squeeze(0) for s in outputs.scores], dim=0
-            )
-            log_probs = torch.log_softmax(scores.float(), dim=-1).cpu().to(torch.bfloat16)
-            del scores
+            # Process each sample in the batch
+            for j, i in enumerate(batch_indices):
+                n_left_pad = (attention_mask[j] == 0).sum().item()
+                prompt_length = attention_mask[j].sum().item()
 
-            torch.save(
-                {
-                    "sample_idx": i,
-                    "prompt_length": prompt_length,
-                    "full_ids": full_ids,
-                    "student_log_probs": log_probs,
-                },
-                student_data_dir / f"sample_{i:03d}.pt",
-            )
-            progress.advance(task)
+                # Extract this sample's full sequence without left padding
+                full_ids = outputs.sequences[j, n_left_pad:].cpu()
+
+                # Determine how many tokens were generated for THIS sample
+                # (may be fewer than max if EOS was hit)
+                pad_id = tokenizer.pad_token_id
+                response_tokens = full_ids[prompt_length:]
+                # Find first pad token in response (= right-side padding after EOS)
+                if pad_id is not None:
+                    pad_mask = response_tokens == pad_id
+                    if pad_mask.any():
+                        gen_len = pad_mask.nonzero(as_tuple=True)[0][0].item()
+                    else:
+                        gen_len = len(response_tokens)
+                else:
+                    gen_len = len(response_tokens)
+
+                # Trim full_ids to remove right padding
+                full_ids = full_ids[: prompt_length + gen_len]
+
+                if gen_len == 0:
+                    print(f"  Sample {i}: no response generated, skipping")
+                    progress.advance(task)
+                    continue
+
+                # Extract this sample's scores from the batch
+                # scores[t] has shape (batch_size, vocab) — take row j, only first gen_len steps
+                sample_scores = torch.stack(
+                    [outputs.scores[t][j] for t in range(gen_len)], dim=0
+                )  # (gen_len, vocab)
+                log_probs = torch.log_softmax(sample_scores.float(), dim=-1).cpu().to(torch.bfloat16)
+                del sample_scores
+
+                torch.save(
+                    {
+                        "sample_idx": i,
+                        "prompt_length": prompt_length,
+                        "full_ids": full_ids,
+                        "student_log_probs": log_probs,
+                    },
+                    student_data_dir / f"sample_{i:03d}.pt",
+                )
+                print(f"  Sample {i}: {gen_len} response tokens")
+                progress.advance(task)
+
+            # Free batch memory
+            del outputs
+            torch.cuda.empty_cache()
 
     del model
     torch.cuda.empty_cache()
