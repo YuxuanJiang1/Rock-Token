@@ -54,7 +54,6 @@ def run_phase1(
 
         for batch_start in range(0, len(remaining), batch_size):
             batch_indices = remaining[batch_start : batch_start + batch_size]
-            cur_batch_size = len(batch_indices)
 
             # Tokenize batch with left-padding
             batch_texts = []
@@ -91,17 +90,17 @@ def run_phase1(
                 # Extract this sample's full sequence without left padding
                 full_ids = outputs.sequences[j, n_left_pad:].cpu()
 
-                # Determine how many tokens were generated for THIS sample
-                # (may be fewer than max if EOS was hit)
-                pad_id = tokenizer.pad_token_id
+                # Determine how many tokens were generated for THIS sample.
+                # In batched generation, sequences that finish early (hit EOS) are
+                # right-padded. Find the EOS to determine actual response length.
                 response_tokens = full_ids[prompt_length:]
-                # Find first pad token in response (= right-side padding after EOS)
-                if pad_id is not None:
-                    pad_mask = response_tokens == pad_id
-                    if pad_mask.any():
-                        gen_len = pad_mask.nonzero(as_tuple=True)[0][0].item()
+                eos_id = tokenizer.eos_token_id
+                if eos_id is not None:
+                    eos_positions = (response_tokens == eos_id).nonzero(as_tuple=True)[0]
+                    if len(eos_positions) > 0:
+                        gen_len = eos_positions[0].item() + 1  # Include the EOS token
                     else:
-                        gen_len = len(response_tokens)
+                        gen_len = len(response_tokens)  # Hit max_new_tokens, no EOS
                 else:
                     gen_len = len(response_tokens)
 
