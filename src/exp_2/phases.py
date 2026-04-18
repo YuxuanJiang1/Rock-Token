@@ -169,3 +169,138 @@ def run_phase2(teacher_model_name: str, output_dir: Path):
     del model
     torch.cuda.empty_cache()
     print("Phase 2 complete")
+
+
+def classify_tokens(avg_entropies: np.ndarray, threshold: float) -> list[str]:
+    """Classify tokens as pillar or stumbling_block based on entropy threshold."""
+    return [
+        "pillar" if e < threshold else "stumbling_block"
+        for e in avg_entropies
+    ]
+
+
+def aggregate_token_stats(
+    all_token_ids: torch.Tensor,
+    all_kl_values: torch.Tensor,
+    all_teacher_entropies: torch.Tensor,
+) -> tuple[torch.Tensor, np.ndarray, np.ndarray, np.ndarray]:
+    """Aggregate per-position stats by token ID.
+
+    Returns: (unique_ids, frequencies, avg_kls, avg_entropies) as numpy arrays.
+    """
+    unique_ids, inverse = torch.unique(all_token_ids, return_inverse=True)
+    n = len(unique_ids)
+
+    frequencies = torch.zeros(n, dtype=torch.float64)
+    sum_kls = torch.zeros(n, dtype=torch.float64)
+    sum_entropies = torch.zeros(n, dtype=torch.float64)
+
+    ones = torch.ones_like(all_kl_values, dtype=torch.float64)
+    frequencies.scatter_add_(0, inverse, ones)
+    sum_kls.scatter_add_(0, inverse, all_kl_values.double())
+    sum_entropies.scatter_add_(0, inverse, all_teacher_entropies.double())
+
+    avg_kls = (sum_kls / frequencies).numpy()
+    avg_entropies = (sum_entropies / frequencies).numpy()
+    frequencies = frequencies.numpy().astype(int)
+
+    return unique_ids, frequencies, avg_kls, avg_entropies
+
+
+def run_phase3(
+    output_dir: Path,
+    tokenizer_name: str,
+    scoring_method: str,
+    alpha: float,
+    beta: float,
+    top_k: int,
+    student_model: str,
+    teacher_model: str,
+):
+    """Aggregate per-token stats, score, classify, and output results."""
+    from datetime import date
+
+    phase2_dir = output_dir / "phase2_data"
+    phase2_files = sorted(phase2_dir.glob("sample_*.pt"))
+    if not phase2_files:
+        raise FileNotFoundError(
+            f"No Phase 2 data in {phase2_dir}. Run Phase 2 first."
+        )
+
+    # Load all per-token data
+    all_token_ids = []
+    all_kl_values = []
+    all_teacher_entropies = []
+
+    for filepath in phase2_files:
+        data = torch.load(filepath, map_location="cpu", weights_only=False)
+        all_token_ids.append(data["token_ids"])
+        all_kl_values.append(data["kl_values"])
+        all_teacher_entropies.append(data["teacher_entropies"])
+
+    all_token_ids = torch.cat(all_token_ids)
+    all_kl_values = torch.cat(all_kl_values)
+    all_teacher_entropies = torch.cat(all_teacher_entropies)
+
+    total_positions = len(all_token_ids)
+
+    # Aggregate by token ID
+    unique_ids, frequencies, avg_kls, avg_entropies = aggregate_token_stats(
+        all_token_ids, all_kl_values, all_teacher_entropies
+    )
+
+    # Score
+    if scoring_method == "geometric":
+        scores = geometric_score(frequencies.astype(float), avg_kls, alpha, beta)
+    else:
+        C = float(np.median(frequencies))
+        mu = float(all_kl_values.mean().item())
+        scores = bayesian_score(frequencies.astype(float), avg_kls, C=C, mu=mu)
+
+    # Classify: global median entropy across ALL token positions
+    global_median_entropy = float(all_teacher_entropies.median().item())
+    classifications = classify_tokens(avg_entropies, global_median_entropy)
+
+    # Sort by score descending, take top-k
+    sorted_indices = np.argsort(scores)[::-1][:top_k]
+
+    # Decode token strings
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+
+    rock_tokens = []
+    for rank, idx in enumerate(sorted_indices, 1):
+        tid = unique_ids[idx].item()
+        rock_tokens.append(
+            {
+                "rank": rank,
+                "token_id": tid,
+                "token_string": tokenizer.decode([tid]),
+                "frequency": int(frequencies[idx]),
+                "avg_kl": round(float(avg_kls[idx]), 6),
+                "rock_score": round(float(scores[idx]), 6),
+                "avg_teacher_entropy": round(float(avg_entropies[idx]), 6),
+                "classification": classifications[idx],
+            }
+        )
+
+    # Build metadata
+    metadata = {
+        "student_model": student_model,
+        "teacher_model": teacher_model,
+        "dataset": "math500",
+        "scoring_method": scoring_method,
+        "entropy_threshold": round(global_median_entropy, 6),
+        "top_k": top_k,
+        "total_positions": total_positions,
+        "unique_token_types": len(unique_ids),
+        "date": str(date.today()),
+    }
+    if scoring_method == "geometric":
+        metadata["alpha"] = alpha
+        metadata["beta"] = beta
+
+    # Output
+    print_results_table(rock_tokens, global_median_entropy, metadata)
+    save_rock_tokens_json(rock_tokens, metadata, output_dir / "rock_tokens.json")
+    save_rock_tokens_csv(rock_tokens, output_dir / "rock_tokens.csv")
+    print(f"\nResults saved to {output_dir / 'rock_tokens.json'} and {output_dir / 'rock_tokens.csv'}")
