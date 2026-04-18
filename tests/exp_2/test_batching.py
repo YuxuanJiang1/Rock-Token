@@ -86,10 +86,15 @@ def generate_batched(model, tokenizer, prompts):
     input_ids = inputs.input_ids.to(model.device)
     attention_mask = inputs.attention_mask.to(model.device)
 
+    # Compute position_ids for left-padded inputs (required for RoPE models)
+    position_ids = attention_mask.long().cumsum(-1) - 1
+    position_ids.masked_fill_(attention_mask == 0, 0)
+
     with torch.no_grad():
         outputs = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
+            position_ids=position_ids,
             max_new_tokens=MAX_NEW_TOKENS,
             do_sample=False,
             output_scores=True,

@@ -68,11 +68,18 @@ def run_phase1(
             input_ids = inputs.input_ids.to(model.device)
             attention_mask = inputs.attention_mask.to(model.device)
 
+            # Compute position_ids for left-padded inputs.
+            # Without this, RoPE models (like Qwen3) assign wrong positions
+            # to content tokens, producing different results than unbatched.
+            position_ids = attention_mask.long().cumsum(-1) - 1
+            position_ids.masked_fill_(attention_mask == 0, 0)
+
             # Batched generation with output_scores
             with torch.no_grad():
                 outputs = model.generate(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
+                    position_ids=position_ids,
                     max_new_tokens=max_new_tokens,
                     do_sample=False,
                     output_scores=True,
