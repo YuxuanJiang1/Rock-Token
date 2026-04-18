@@ -67,7 +67,7 @@ def run_phase1(student_model_name: str, output_dir: Path, max_new_tokens: int = 
             scores = torch.stack(
                 [s.squeeze(0) for s in outputs.scores], dim=0
             )
-            log_probs = torch.log_softmax(scores.float(), dim=-1).cpu().half()
+            log_probs = torch.log_softmax(scores.float(), dim=-1).cpu().to(torch.bfloat16)
             del scores
 
             torch.save(
@@ -123,7 +123,7 @@ def run_phase2(teacher_model_name: str, output_dir: Path):
     with Progress() as progress:
         task = progress.add_task("Phase 2: Teacher KL computation", total=len(remaining))
         for filepath, idx in remaining:
-            data = torch.load(filepath, map_location="cpu", weights_only=False)
+            data = torch.load(filepath, map_location="cpu", weights_only=True)
             full_ids = data["full_ids"]
             prompt_length = data["prompt_length"]
             student_log_probs = data["student_log_probs"].float()  # (response_len, vocab)
@@ -152,8 +152,8 @@ def run_phase2(teacher_model_name: str, output_dir: Path):
             # Teacher entropy = -sum P_teacher * log P_teacher
             teacher_entropies = -(teacher_probs * teacher_log_probs).sum(dim=-1)
 
-            # Response token IDs
-            token_ids = full_ids[prompt_length:]
+            # Response token IDs (slice to response_len to match kl_values length)
+            token_ids = full_ids[prompt_length : prompt_length + response_len]
 
             torch.save(
                 {
@@ -233,7 +233,7 @@ def run_phase3(
     all_teacher_entropies = []
 
     for filepath in phase2_files:
-        data = torch.load(filepath, map_location="cpu", weights_only=False)
+        data = torch.load(filepath, map_location="cpu", weights_only=True)
         all_token_ids.append(data["token_ids"])
         all_kl_values.append(data["kl_values"])
         all_teacher_entropies.append(data["teacher_entropies"])

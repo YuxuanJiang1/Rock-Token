@@ -11,8 +11,10 @@ def geometric_score(
 
     RockScore_i = (f_i / max(f))^alpha * (avg_KL_i / max(avg_KL))^beta
     """
-    norm_freq = frequencies / frequencies.max()
-    norm_kl = avg_kls / avg_kls.max()
+    max_freq = frequencies.max()
+    max_kl = avg_kls.max()
+    norm_freq = frequencies / max_freq if max_freq > 0 else np.zeros_like(frequencies)
+    norm_kl = avg_kls / max_kl if max_kl > 0 else np.zeros_like(avg_kls)
     return (norm_freq**alpha) * (norm_kl**beta)
 
 
