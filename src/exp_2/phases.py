@@ -50,11 +50,13 @@ def run_phase1(student_model_name: str, output_dir: Path, max_new_tokens: int = 
             )
             inputs = tokenizer(prompt_text, return_tensors="pt")
             input_ids = inputs.input_ids.to(model.device)
+            attention_mask = inputs.attention_mask.to(model.device)
             prompt_length = input_ids.shape[1]
 
             with torch.no_grad():
                 outputs = model.generate(
                     input_ids=input_ids,
+                    attention_mask=attention_mask,
                     max_new_tokens=max_new_tokens,
                     do_sample=False,
                     output_scores=True,
@@ -62,6 +64,8 @@ def run_phase1(student_model_name: str, output_dir: Path, max_new_tokens: int = 
                 )
 
             full_ids = outputs.sequences[0].cpu()
+            gen_len = len(outputs.scores)
+            print(f"  Sample {i}: generated {gen_len} tokens")
 
             # Stack generation scores: tuple of (1, vocab) -> (gen_len, vocab)
             scores = torch.stack(
