@@ -16,8 +16,8 @@ Research project investigating **Recalcitrant Tokens ("Rock Tokens")** in On-Pol
 
 | Role | Model |
 |------|-------|
-| Teacher | Qwen3-30B-Instruct |
-| Student 1 | Qwen3-4B-Instruct (same family) |
+| Teacher | `Qwen/Qwen3-30B-A3B-Instruct-2507` |
+| Student 1 (base) | `Qwen/Qwen3-4B-Instruct-2507` |
 | Student 2 | Llama-3.2-3B (cross family) |
 
 ### Evaluation Benchmarks

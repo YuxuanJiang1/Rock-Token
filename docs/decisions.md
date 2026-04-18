@@ -8,7 +8,7 @@ This document tracks all design and implementation decisions for the Rock Token 
 
 | # | Decision | Rationale | Date |
 |---|----------|-----------|------|
-| 1 | Teacher: `Qwen3-30B-Instruct`, Student: `Qwen3-4B-Instruct` | Same-family distillation for initial experiments | Pre-project |
+| 1 | Teacher: `Qwen/Qwen3-30B-A3B-Instruct-2507`, Student base: `Qwen/Qwen3-4B-Instruct-2507` | Same-family distillation for initial experiments | Pre-project |
 | 2 | 2-stage training: SFT warmup (20k traces from OpenThoughts3) then OPD (5k prompts, 4 rollouts) | Standard OPD setup following GKD framework | Pre-project |
 | 3 | Trained model checkpoint: `RockToken/qwen3_30b_a3b_to_4b_onpolicy_math_following5k` | Exp 1 output, used as input for Exp 2 | 2026-04-18 |
 

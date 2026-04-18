@@ -1,7 +1,7 @@
 # Makefile — Rock Token experiments
 
 STUDENT ?= RockToken/qwen3_30b_a3b_to_4b_onpolicy_math_following5k
-TEACHER ?= Qwen3/Qwen3-30B-A3B
+TEACHER ?= Qwen/Qwen3-30B-A3B-Instruct-2507
 OUTPUT  ?= results/exp2
 TOP_K   ?= 50
 
