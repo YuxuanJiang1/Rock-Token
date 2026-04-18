@@ -4,6 +4,7 @@ STUDENT ?= RockToken/qwen3_30b_a3b_to_4b_onpolicy_math_following5k
 TEACHER ?= Qwen/Qwen3-30B-A3B-Instruct-2507
 OUTPUT  ?= results/exp2
 TOP_K   ?= 50
+BATCH   ?= 4
 
 # --- Exp 2: Rock Token Identification ---
 
@@ -12,17 +13,17 @@ TOP_K   ?= 50
 exp2:  ## Run full pipeline (bayesian scoring, default)
 	uv run python src/exp_2/identify_rock_tokens.py \
 		--student $(STUDENT) --teacher $(TEACHER) \
-		--scoring bayesian --top-k $(TOP_K) --output-dir $(OUTPUT)
+		--scoring bayesian --top-k $(TOP_K) --batch-size $(BATCH) --output-dir $(OUTPUT)
 
 exp2-geometric:  ## Run full pipeline with geometric scoring
 	uv run python src/exp_2/identify_rock_tokens.py \
 		--student $(STUDENT) --teacher $(TEACHER) \
-		--scoring geometric --top-k $(TOP_K) --output-dir $(OUTPUT)
+		--scoring geometric --top-k $(TOP_K) --batch-size $(BATCH) --output-dir $(OUTPUT)
 
 exp2-phase1:  ## Run only Phase 1 (student generation)
 	uv run python src/exp_2/identify_rock_tokens.py \
 		--student $(STUDENT) --teacher $(TEACHER) \
-		--phase 1 --output-dir $(OUTPUT)
+		--phase 1 --batch-size $(BATCH) --output-dir $(OUTPUT)
 
 exp2-phase2:  ## Run from Phase 2 (teacher KL)
 	uv run python src/exp_2/identify_rock_tokens.py \
