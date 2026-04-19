@@ -45,12 +45,14 @@ from vllm import LLM, SamplingParams
 prompts = {PROMPTS!r}
 conversations = [[{{"role": "user", "content": p}}] for p in prompts]
 
+from transformers import AutoConfig
+config = AutoConfig.from_pretrained("{MODEL}", trust_remote_code=True)
+vocab_size = config.vocab_size
+
 llm = LLM(model="{MODEL}", dtype="bfloat16", tensor_parallel_size=1,
-          trust_remote_code=True, enforce_eager=True)
+          trust_remote_code=True, enforce_eager=True, max_logprobs=vocab_size)
 params = SamplingParams(temperature=0, max_tokens={MAX_NEW_TOKENS}, logprobs=-1)
 outputs = llm.chat(conversations, params)
-
-vocab_size = len(outputs[0].outputs[0].logprobs[0])
 
 for idx, output in enumerate(outputs):
     prompt_ids = list(output.prompt_token_ids)

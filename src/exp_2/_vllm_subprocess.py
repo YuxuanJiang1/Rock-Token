@@ -35,13 +35,18 @@ def main():
     for i in sample_indices:
         conversations.append([{"role": "user", "content": dataset[i]["problem"]}])
 
-    # Init vLLM
-    print(f"[vLLM] Loading model {args.model} (TP={args.tensor_parallel})...")
+    # Init vLLM with max_logprobs set to vocab size for full-vocab logprobs
+    from transformers import AutoConfig
+    config = AutoConfig.from_pretrained(args.model, trust_remote_code=True)
+    vocab_size = config.vocab_size
+
+    print(f"[vLLM] Loading model {args.model} (TP={args.tensor_parallel}, vocab={vocab_size})...")
     llm = LLM(
         model=args.model,
         dtype="bfloat16",
         tensor_parallel_size=args.tensor_parallel,
         trust_remote_code=True,
+        max_logprobs=vocab_size,
     )
 
     # logprobs=-1 returns full vocabulary log-probs
