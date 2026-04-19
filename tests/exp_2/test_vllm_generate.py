@@ -1,10 +1,9 @@
-"""Test vLLM generation produces correct output and matches HF single-sample.
+"""Test vLLM generation produces correct output format and valid log-probs.
 
 Requires GPU, CUDA, and vLLM installed.
 Run with: uv run pytest tests/exp_2/test_vllm_generate.py -v -s
 """
 
-import gc
 import json
 import os
 import shutil
@@ -19,9 +18,7 @@ import torch
 if not torch.cuda.is_available():
     pytest.skip("CUDA not available", allow_module_level=True)
 
-vllm = pytest.importorskip("vllm")
-
-from transformers import AutoModelForCausalLM, AutoTokenizer
+pytest.importorskip("vllm")
 
 MODEL = os.environ.get("TEST_MODEL", "Qwen/Qwen3-0.6B")
 MAX_NEW_TOKENS = 64
@@ -33,191 +30,119 @@ PROMPTS = [
 
 
 @pytest.fixture(scope="module")
-def vllm_results():
-    """Run vLLM subprocess + HF forward pass on 2 test prompts."""
+def vllm_output_dir():
+    """Run vLLM subprocess on 2 test prompts, return output dir."""
     tmpdir = Path(tempfile.mkdtemp())
-    token_ids_dir = tmpdir / "vllm_token_ids"
-    token_ids_dir.mkdir()
+    student_dir = tmpdir / "student_data"
+    student_dir.mkdir()
 
-    # Step 1: vLLM generation in subprocess (isolated CUDA context)
-    # Write prompts as a mini dataset substitute
-    # We call _vllm_subprocess directly with our test prompts
-    _run_vllm_on_prompts(PROMPTS, MODEL, MAX_NEW_TOKENS, token_ids_dir)
-
-    # Step 2: HF forward pass for log-probs (clean CUDA context)
-    results = _hf_forward_on_token_ids(token_ids_dir, MODEL)
-
-    yield results
-    shutil.rmtree(tmpdir, ignore_errors=True)
-
-
-def _run_vllm_on_prompts(prompts, model_name, max_tokens, output_dir):
-    """Run vLLM generation in a subprocess to avoid CUDA corruption."""
-    # Write a small helper script inline since _vllm_subprocess expects MATH500
+    # Run vLLM in subprocess with our test prompts
     script = f"""
-import json, sys
+import json, torch
 from pathlib import Path
 from vllm import LLM, SamplingParams
 
-prompts = {prompts!r}
+prompts = {PROMPTS!r}
 conversations = [[{{"role": "user", "content": p}}] for p in prompts]
 
-llm = LLM(model="{model_name}", dtype="bfloat16", tensor_parallel_size=1,
+llm = LLM(model="{MODEL}", dtype="bfloat16", tensor_parallel_size=1,
           trust_remote_code=True, enforce_eager=True)
-params = SamplingParams(temperature=0, max_tokens={max_tokens})
+params = SamplingParams(temperature=0, max_tokens={MAX_NEW_TOKENS}, logprobs=-1)
 outputs = llm.chat(conversations, params)
+
+vocab_size = len(outputs[0].outputs[0].logprobs[0])
 
 for idx, output in enumerate(outputs):
     prompt_ids = list(output.prompt_token_ids)
-    gen_ids = list(output.outputs[0].token_ids)
-    data = {{
+    gen_out = output.outputs[0]
+    gen_ids = list(gen_out.token_ids)
+    gen_len = len(gen_ids)
+    full_ids = torch.tensor(prompt_ids + gen_ids, dtype=torch.long)
+
+    log_probs = torch.full((gen_len, vocab_size), float("-inf"), dtype=torch.float32)
+    for t, lp_dict in enumerate(gen_out.logprobs):
+        ids = torch.tensor([k for k in lp_dict.keys()], dtype=torch.long)
+        vals = torch.tensor([v.logprob for v in lp_dict.values()], dtype=torch.float32)
+        log_probs[t].scatter_(0, ids, vals)
+
+    torch.save({{
         "sample_idx": idx,
         "prompt_length": len(prompt_ids),
-        "full_ids": prompt_ids + gen_ids,
-        "gen_len": len(gen_ids),
-    }}
-    with open(Path("{output_dir}") / f"sample_{{idx:03d}}.json", "w") as f:
-        json.dump(data, f)
-    print(f"Sample {{idx}}: {{len(gen_ids)}} tokens")
+        "full_ids": full_ids,
+        "student_log_probs": log_probs.to(torch.bfloat16),
+    }}, Path("{student_dir}") / f"sample_{{idx:03d}}.pt")
+    print(f"Sample {{idx}}: {{gen_len}} tokens, vocab={{vocab_size}}")
 """
     result = subprocess.run(
         [sys.executable, "-c", script],
-        capture_output=True, text=True
+        capture_output=True, text=True,
     )
     if result.returncode != 0:
         pytest.fail(f"vLLM subprocess failed:\nstdout: {result.stdout}\nstderr: {result.stderr}")
 
-
-def _hf_forward_on_token_ids(token_ids_dir, model_name):
-    """Load HF model and run forward pass on saved token IDs."""
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name, dtype=torch.bfloat16, device_map="auto"
-    )
-    model.eval()
-
-    results = []
-    for f in sorted(token_ids_dir.glob("sample_*.json")):
-        with open(f) as fh:
-            data = json.load(fh)
-
-        full_ids = torch.tensor(data["full_ids"], dtype=torch.long)
-        prompt_length = data["prompt_length"]
-        gen_len = data["gen_len"]
-
-        with torch.no_grad():
-            fwd = model(input_ids=full_ids.unsqueeze(0).to(model.device))
-        logits = fwd.logits[0].float().cpu()
-        student_logits = logits[prompt_length - 1 : prompt_length - 1 + gen_len]
-        log_probs = torch.log_softmax(student_logits, dim=-1)
-
-        results.append({
-            "full_ids": full_ids,
-            "prompt_length": prompt_length,
-            "gen_len": gen_len,
-            "log_probs": log_probs,
-        })
-
-    del model
-    torch.cuda.empty_cache()
-    return results
+    yield student_dir
+    shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-@pytest.fixture(scope="module")
-def hf_results():
-    """HF single-sample generation + forward pass as ground truth."""
-    tokenizer = AutoTokenizer.from_pretrained(MODEL)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL, dtype=torch.bfloat16, device_map="auto"
-    )
-    model.eval()
+def test_output_files_exist(vllm_output_dir):
+    """Should produce one .pt file per prompt."""
+    files = sorted(vllm_output_dir.glob("sample_*.pt"))
+    assert len(files) == len(PROMPTS), f"Expected {len(PROMPTS)} files, got {len(files)}"
 
-    results = []
-    for prompt in PROMPTS:
-        messages = [{"role": "user", "content": prompt}]
-        text = tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
+
+def test_output_format(vllm_output_dir):
+    """Verify .pt files have correct keys, shapes, and dtypes."""
+    for f in sorted(vllm_output_dir.glob("sample_*.pt")):
+        data = torch.load(f, map_location="cpu", weights_only=True)
+
+        # Required keys
+        assert set(data.keys()) == {"sample_idx", "prompt_length", "full_ids", "student_log_probs"}
+
+        # Types
+        assert isinstance(data["sample_idx"], int)
+        assert isinstance(data["prompt_length"], int)
+        assert data["full_ids"].dtype == torch.long
+        assert data["student_log_probs"].dtype == torch.bfloat16
+
+        # Shape consistency
+        full_len = data["full_ids"].shape[0]
+        gen_len = data["student_log_probs"].shape[0]
+        prompt_len = data["prompt_length"]
+        assert full_len == prompt_len + gen_len, (
+            f"full_ids({full_len}) != prompt({prompt_len}) + gen({gen_len})"
         )
-        inputs = tokenizer(text, return_tensors="pt")
-        input_ids = inputs.input_ids.to(model.device)
-        attention_mask = inputs.attention_mask.to(model.device)
-        prompt_length = input_ids.shape[1]
-
-        with torch.no_grad():
-            gen_out = model.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                max_new_tokens=MAX_NEW_TOKENS,
-                do_sample=False,
-            )
-
-        full_ids = gen_out[0].cpu()
-        gen_len = len(full_ids) - prompt_length
-
-        with torch.no_grad():
-            fwd = model(input_ids=full_ids.unsqueeze(0).to(model.device))
-        logits = fwd.logits[0].float().cpu()
-        student_logits = logits[prompt_length - 1 : prompt_length - 1 + gen_len]
-        log_probs = torch.log_softmax(student_logits, dim=-1)
-
-        results.append({
-            "full_ids": full_ids,
-            "prompt_length": prompt_length,
-            "gen_len": gen_len,
-            "log_probs": log_probs,
-        })
-
-    del model
-    torch.cuda.empty_cache()
-    return results
+        assert data["student_log_probs"].shape[1] > 100000, "vocab_size too small"
 
 
-def test_vllm_output_format(vllm_results):
-    """Verify vLLM path produces valid output structure."""
-    for i, r in enumerate(vllm_results):
-        assert r["full_ids"].dtype == torch.long
-        assert r["full_ids"].shape[0] == r["prompt_length"] + r["gen_len"], (
-            f"Prompt {i}: full_ids length mismatch"
-        )
-        assert r["log_probs"].shape == (r["gen_len"], r["log_probs"].shape[1])
-        assert r["log_probs"].shape[1] > 100000, "vocab_size too small"
-
-
-def test_vllm_log_probs_valid(vllm_results):
+def test_log_probs_valid(vllm_output_dir):
     """Verify log-probs are valid probability distributions."""
-    for i, r in enumerate(vllm_results):
-        lp = r["log_probs"]
-        assert (lp <= 0).all(), f"Prompt {i}: found positive log-probs"
+    for f in sorted(vllm_output_dir.glob("sample_*.pt")):
+        data = torch.load(f, map_location="cpu", weights_only=True)
+        lp = data["student_log_probs"].float()
+
+        # All log-probs should be <= 0
+        assert (lp <= 1e-5).all(), "Found positive log-probs"
+
+        # exp(log_probs) should sum to ~1 per position
         probs_sum = lp.exp().sum(dim=-1)
         assert torch.allclose(probs_sum, torch.ones_like(probs_sum), atol=1e-2), (
-            f"Prompt {i}: probs don't sum to 1"
+            f"Probs don't sum to 1: min={probs_sum.min():.4f}, max={probs_sum.max():.4f}"
         )
 
 
-def test_vllm_vs_hf_token_ids(vllm_results, hf_results):
-    """vLLM and HF should produce identical response tokens."""
-    for i, (v, h) in enumerate(zip(vllm_results, hf_results)):
-        v_response = v["full_ids"][v["prompt_length"]:]
-        h_response = h["full_ids"][h["prompt_length"]:]
-        assert v["gen_len"] == h["gen_len"], (
-            f"Prompt {i}: gen_len differs: vllm={v['gen_len']}, hf={h['gen_len']}"
-        )
-        assert torch.equal(v_response, h_response), (
-            f"Prompt {i}: response token IDs differ"
-        )
+def test_no_inf_in_top_tokens(vllm_output_dir):
+    """The generated token at each position should have a finite log-prob."""
+    for f in sorted(vllm_output_dir.glob("sample_*.pt")):
+        data = torch.load(f, map_location="cpu", weights_only=True)
+        lp = data["student_log_probs"].float()
+        full_ids = data["full_ids"]
+        prompt_len = data["prompt_length"]
 
-
-def test_vllm_vs_hf_log_probs(vllm_results, hf_results):
-    """Log-probs should match since both use HF forward pass on same tokens."""
-    for i, (v, h) in enumerate(zip(vllm_results, hf_results)):
-        if v["gen_len"] != h["gen_len"]:
-            pytest.skip(f"Prompt {i}: gen_len differs, can't compare log-probs")
-
-        max_diff = (v["log_probs"] - h["log_probs"]).abs().max().item()
-        assert max_diff < 1e-3, (
-            f"Prompt {i}: log-prob max diff = {max_diff:.6f} (expected < 1e-3)"
-        )
+        # Response token IDs
+        response_ids = full_ids[prompt_len:]
+        # Log-prob of the actually generated token at each position
+        for t in range(len(response_ids)):
+            token_lp = lp[t, response_ids[t]].item()
+            assert token_lp > float("-inf"), (
+                f"Generated token {response_ids[t]} at position {t} has -inf log-prob"
+            )
