@@ -17,7 +17,7 @@ def vllm_generate(
     model_name: str,
     output_dir: Path,
     max_new_tokens: int = 2048,
-    tensor_parallel_size: int = 1,
+    tensor_parallel_size: int | None = None,
 ) -> None:
     """Generate student responses via vLLM + extract log-probs via HF forward pass.
 
@@ -49,7 +49,11 @@ def vllm_generate(
         print(f"Phase 1 complete ({len(existing)}/{len(dataset)} samples already exist)")
         return
 
-    print(f"Phase 1 (vLLM): {len(existing)}/{len(dataset)} done, {len(remaining)} remaining")
+    # Auto-detect GPU count if not specified
+    if tensor_parallel_size is None:
+        tensor_parallel_size = torch.cuda.device_count() if torch.cuda.is_available() else 1
+
+    print(f"Phase 1 (vLLM): {len(existing)}/{len(dataset)} done, {len(remaining)} remaining (TP={tensor_parallel_size})")
 
     # Build conversations for remaining samples
     conversations = []

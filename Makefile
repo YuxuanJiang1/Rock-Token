@@ -8,7 +8,7 @@ BATCH   ?= 4
 
 # --- Exp 2: Rock Token Identification ---
 
-.PHONY: exp2 exp2-geometric exp2-phase1 exp2-phase2 exp2-phase3 test lint
+.PHONY: exp2 exp2-geometric exp2-vllm exp2-phase1 exp2-phase1-vllm exp2-phase2 exp2-phase3 test lint
 
 exp2:  ## Run full pipeline (bayesian scoring, default)
 	uv run python src/exp_2/identify_rock_tokens.py \
@@ -24,6 +24,17 @@ exp2-phase1:  ## Run only Phase 1 (student generation)
 	uv run python src/exp_2/identify_rock_tokens.py \
 		--student $(STUDENT) --teacher $(TEACHER) \
 		--phase 1 --batch-size $(BATCH) --output-dir $(OUTPUT)
+
+exp2-vllm:  ## Run full pipeline with vLLM generation (uses all GPUs)
+	uv run python src/exp_2/identify_rock_tokens.py \
+		--student $(STUDENT) --teacher $(TEACHER) \
+		--backend vllm \
+		--scoring bayesian --top-k $(TOP_K) --output-dir $(OUTPUT)
+
+exp2-phase1-vllm:  ## Run Phase 1 only with vLLM
+	uv run python src/exp_2/identify_rock_tokens.py \
+		--student $(STUDENT) --teacher $(TEACHER) \
+		--phase 1 --backend vllm --output-dir $(OUTPUT)
 
 exp2-phase2:  ## Run from Phase 2 (teacher KL)
 	uv run python src/exp_2/identify_rock_tokens.py \

@@ -68,6 +68,19 @@ def parse_args():
         help="Batch size for Phase 1 generation",
     )
     parser.add_argument(
+        "--backend",
+        type=str,
+        choices=["hf", "vllm"],
+        default="hf",
+        help="Generation backend for Phase 1: 'hf' or 'vllm'",
+    )
+    parser.add_argument(
+        "--tensor-parallel",
+        type=int,
+        default=None,
+        help="Number of GPUs for vLLM tensor parallelism (default: all available)",
+    )
+    parser.add_argument(
         "--output-dir",
         type=str,
         default="results/exp2",
@@ -99,7 +112,14 @@ def main():
 
     # Phase 1: Student generation
     if start_phase <= 1:
-        run_phase1(args.student, output_dir, args.max_new_tokens, args.batch_size)
+        run_phase1(
+            args.student,
+            output_dir,
+            args.max_new_tokens,
+            args.batch_size,
+            backend=args.backend,
+            tensor_parallel_size=args.tensor_parallel,
+        )
 
     # Phase 2: Teacher KL computation
     if start_phase <= 2:
