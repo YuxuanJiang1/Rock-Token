@@ -21,6 +21,7 @@ def run_phase1(
     student_model_name: str,
     output_dir: Path,
     max_new_tokens: int = 2048,
+    n_samples: int | None = None,
 ):
     """Generate student responses and save per-token log-probs.
 
@@ -35,7 +36,10 @@ def run_phase1(
         for f in student_data_dir.glob("sample_*.pt")
     }
     dataset = load_math500()
-    remaining = [i for i in range(len(dataset)) if i not in existing]
+    all_indices = list(range(len(dataset)))
+    if n_samples is not None:
+        all_indices = all_indices[:n_samples]
+    remaining = [i for i in all_indices if i not in existing]
 
     if not remaining:
         print(f"Phase 1 complete ({len(existing)}/{len(dataset)} samples already exist)")

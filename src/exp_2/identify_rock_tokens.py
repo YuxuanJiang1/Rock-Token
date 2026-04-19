@@ -62,6 +62,12 @@ def parse_args():
         help="Max tokens to generate per sample in Phase 1",
     )
     parser.add_argument(
+        "--n-samples",
+        type=int,
+        default=None,
+        help="Number of samples to process (default: all)",
+    )
+    parser.add_argument(
         "--output-dir",
         type=str,
         default="results/exp2",
@@ -93,7 +99,7 @@ def main():
 
     # Phase 1: Student generation
     if start_phase <= 1:
-        run_phase1(args.student, output_dir, args.max_new_tokens)
+        run_phase1(args.student, output_dir, args.max_new_tokens, args.n_samples)
 
     # Phase 2: Teacher KL computation
     if start_phase <= 2:
