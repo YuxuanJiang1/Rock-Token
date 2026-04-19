@@ -25,3 +25,7 @@ This document tracks all design and implementation decisions for the Rock Token 
 | 7 | Output file formats: both JSON (programmatic use) and CSV (quick inspection) | JSON for Exp 3 consumption, CSV for easy team review | 2026-04-18 |
 | 8 | Single script with `--phase` resume capability, code in `src/exp_2/` | Simple to run, robust to crashes, can resume from any phase | 2026-04-18 |
 | 9 | Add Makefile for easier running of experiments | Convenience shortcuts for common commands | 2026-04-18 |
+| 10 | HF batched generation broken for Qwen3 (left-padding + RoPE + KV cache) | Confirmed by test: token IDs and log-probs differ between batch=1 and batch>1. position_ids fix insufficient — KV cache length includes padding, corrupting decode-step positions | 2026-04-18 |
+| 11 | Use vLLM (>=0.19) for Phase 1 generation, `--backend vllm` flag | vLLM handles batching natively via continuous batching + PagedAttention, no padding issues. Optional dependency. | 2026-04-18 |
+| 12 | Hybrid approach: vLLM gen + HF forward pass for log-probs | vLLM `logprobs=-1` returns full vocab but as Python dicts (~152k entries/position) — converting to tensors is slower than 500 HF forward passes (~2.5 min). HF forward pass is same proven pattern as Phase 2 teacher. | 2026-04-18 |
+| 13 | `--tensor-parallel` defaults to all available GPUs (`torch.cuda.device_count()`) | Use full GPU resources by default | 2026-04-18 |
