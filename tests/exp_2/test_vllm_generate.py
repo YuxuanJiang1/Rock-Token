@@ -5,12 +5,13 @@ Run with: uv run pytest tests/exp_2/test_vllm_generate.py -v -s
 """
 
 import gc
+import json
 import os
+import shutil
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
-
-# Must be set before vLLM import — prevents fork() deadlocks in pytest
-os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
 
 import pytest
 import torch
@@ -20,7 +21,6 @@ if not torch.cuda.is_available():
 
 vllm = pytest.importorskip("vllm")
 
-from vllm import LLM, SamplingParams
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 MODEL = os.environ.get("TEST_MODEL", "Qwen/Qwen3-0.6B")
@@ -32,33 +32,64 @@ PROMPTS = [
 ]
 
 
-def _vllm_generate_and_forward(prompts, model_name, max_new_tokens):
-    """Run vLLM generation + HF forward pass on a list of prompts.
+@pytest.fixture(scope="module")
+def vllm_results():
+    """Run vLLM subprocess + HF forward pass on 2 test prompts."""
+    tmpdir = Path(tempfile.mkdtemp())
+    token_ids_dir = tmpdir / "vllm_token_ids"
+    token_ids_dir.mkdir()
 
-    Returns list of dicts with full_ids, prompt_length, gen_len, log_probs.
-    """
-    # Step 1: vLLM generation
-    conversations = [[{"role": "user", "content": p}] for p in prompts]
-    llm = LLM(model=model_name, dtype="bfloat16", tensor_parallel_size=1,
-              trust_remote_code=True, enforce_eager=True)
-    sampling_params = SamplingParams(temperature=0, max_tokens=max_new_tokens)
-    outputs = llm.chat(conversations, sampling_params)
+    # Step 1: vLLM generation in subprocess (isolated CUDA context)
+    # Write prompts as a mini dataset substitute
+    # We call _vllm_subprocess directly with our test prompts
+    _run_vllm_on_prompts(PROMPTS, MODEL, MAX_NEW_TOKENS, token_ids_dir)
 
-    generated = []
-    for output in outputs:
-        prompt_ids = list(output.prompt_token_ids)
-        gen_ids = list(output.outputs[0].token_ids)
-        generated.append({
-            "full_ids": torch.tensor(prompt_ids + gen_ids, dtype=torch.long),
-            "prompt_length": len(prompt_ids),
-            "gen_len": len(gen_ids),
-        })
+    # Step 2: HF forward pass for log-probs (clean CUDA context)
+    results = _hf_forward_on_token_ids(token_ids_dir, MODEL)
 
-    del llm, outputs
-    gc.collect()
-    torch.cuda.empty_cache()
+    yield results
+    shutil.rmtree(tmpdir, ignore_errors=True)
 
-    # Step 2: HF forward pass for log-probs
+
+def _run_vllm_on_prompts(prompts, model_name, max_tokens, output_dir):
+    """Run vLLM generation in a subprocess to avoid CUDA corruption."""
+    # Write a small helper script inline since _vllm_subprocess expects MATH500
+    script = f"""
+import json, sys
+from pathlib import Path
+from vllm import LLM, SamplingParams
+
+prompts = {prompts!r}
+conversations = [[{{"role": "user", "content": p}}] for p in prompts]
+
+llm = LLM(model="{model_name}", dtype="bfloat16", tensor_parallel_size=1,
+          trust_remote_code=True, enforce_eager=True)
+params = SamplingParams(temperature=0, max_tokens={max_tokens})
+outputs = llm.chat(conversations, params)
+
+for idx, output in enumerate(outputs):
+    prompt_ids = list(output.prompt_token_ids)
+    gen_ids = list(output.outputs[0].token_ids)
+    data = {{
+        "sample_idx": idx,
+        "prompt_length": len(prompt_ids),
+        "full_ids": prompt_ids + gen_ids,
+        "gen_len": len(gen_ids),
+    }}
+    with open(Path("{output_dir}") / f"sample_{{idx:03d}}.json", "w") as f:
+        json.dump(data, f)
+    print(f"Sample {{idx}}: {{len(gen_ids)}} tokens")
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        pytest.fail(f"vLLM subprocess failed:\nstdout: {result.stdout}\nstderr: {result.stderr}")
+
+
+def _hf_forward_on_token_ids(token_ids_dir, model_name):
+    """Load HF model and run forward pass on saved token IDs."""
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -68,10 +99,13 @@ def _vllm_generate_and_forward(prompts, model_name, max_new_tokens):
     model.eval()
 
     results = []
-    for g in generated:
-        full_ids = g["full_ids"]
-        prompt_length = g["prompt_length"]
-        gen_len = g["gen_len"]
+    for f in sorted(token_ids_dir.glob("sample_*.json")):
+        with open(f) as fh:
+            data = json.load(fh)
+
+        full_ids = torch.tensor(data["full_ids"], dtype=torch.long)
+        prompt_length = data["prompt_length"]
+        gen_len = data["gen_len"]
 
         with torch.no_grad():
             fwd = model(input_ids=full_ids.unsqueeze(0).to(model.device))
@@ -91,18 +125,19 @@ def _vllm_generate_and_forward(prompts, model_name, max_new_tokens):
     return results
 
 
-def _hf_single_generate_and_forward(prompts, model_name, max_new_tokens):
+@pytest.fixture(scope="module")
+def hf_results():
     """HF single-sample generation + forward pass as ground truth."""
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
-        model_name, dtype=torch.bfloat16, device_map="auto"
+        MODEL, dtype=torch.bfloat16, device_map="auto"
     )
     model.eval()
 
     results = []
-    for prompt in prompts:
+    for prompt in PROMPTS:
         messages = [{"role": "user", "content": prompt}]
         text = tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
@@ -116,7 +151,7 @@ def _hf_single_generate_and_forward(prompts, model_name, max_new_tokens):
             gen_out = model.generate(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                max_new_tokens=max_new_tokens,
+                max_new_tokens=MAX_NEW_TOKENS,
                 do_sample=False,
             )
 
@@ -139,16 +174,6 @@ def _hf_single_generate_and_forward(prompts, model_name, max_new_tokens):
     del model
     torch.cuda.empty_cache()
     return results
-
-
-@pytest.fixture(scope="module")
-def vllm_results():
-    return _vllm_generate_and_forward(PROMPTS, MODEL, MAX_NEW_TOKENS)
-
-
-@pytest.fixture(scope="module")
-def hf_results():
-    return _hf_single_generate_and_forward(PROMPTS, MODEL, MAX_NEW_TOKENS)
 
 
 def test_vllm_output_format(vllm_results):
@@ -174,10 +199,8 @@ def test_vllm_log_probs_valid(vllm_results):
 
 
 def test_vllm_vs_hf_token_ids(vllm_results, hf_results):
-    """vLLM and HF single-sample should produce identical token sequences."""
+    """vLLM and HF should produce identical response tokens."""
     for i, (v, h) in enumerate(zip(vllm_results, hf_results)):
-        # Response tokens should match (prompt tokenization may differ slightly
-        # between vLLM and HF, so compare response tokens only)
         v_response = v["full_ids"][v["prompt_length"]:]
         h_response = h["full_ids"][h["prompt_length"]:]
         assert v["gen_len"] == h["gen_len"], (
@@ -189,12 +212,7 @@ def test_vllm_vs_hf_token_ids(vllm_results, hf_results):
 
 
 def test_vllm_vs_hf_log_probs(vllm_results, hf_results):
-    """vLLM path log-probs should match HF single-sample log-probs closely.
-
-    Both use HF forward pass for log-probs, so the only difference is whether
-    the generated tokens came from vLLM or HF. If tokens match (tested above),
-    the forward pass on the same tokens should give identical log-probs.
-    """
+    """Log-probs should match since both use HF forward pass on same tokens."""
     for i, (v, h) in enumerate(zip(vllm_results, hf_results)):
         if v["gen_len"] != h["gen_len"]:
             pytest.skip(f"Prompt {i}: gen_len differs, can't compare log-probs")

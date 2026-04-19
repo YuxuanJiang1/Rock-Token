@@ -2,9 +2,17 @@
 
 Uses vLLM for fast batched generation (avoids HF left-padding + RoPE issues),
 then HF forward pass per sample to extract full-vocabulary log-probs.
+
+vLLM runs in a subprocess to avoid CUDA context corruption — vLLM's engine
+spawns its own CUDA processes, and after cleanup the parent process's CUDA
+state can be corrupted (CUBLAS_STATUS_NOT_SUPPORTED errors). Running vLLM
+in isolation ensures a clean CUDA context for the HF forward pass.
 """
 
 import gc
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 import torch
@@ -21,23 +29,14 @@ def vllm_generate(
 ) -> None:
     """Generate student responses via vLLM + extract log-probs via HF forward pass.
 
-    Step 1: vLLM generates all remaining responses (fast, correct batching).
-    Step 2: Destroy vLLM engine, free GPU memory.
-    Step 3: HF forward pass per sample to get full-vocab log-probs.
-    Step 4: Save .pt files in the same format as HF-based Phase 1.
-
-    Output format per sample (student_data/sample_{i:03d}.pt):
-        sample_idx: int
-        prompt_length: int
-        full_ids: Tensor (seq_len,)
-        student_log_probs: Tensor (gen_len, vocab_size) bfloat16
+    Step 1: Run vLLM in a subprocess to generate responses and save token IDs.
+    Step 2: HF forward pass per sample (clean CUDA context) for full-vocab log-probs.
+    Step 3: Save .pt files in the same format as HF-based Phase 1.
     """
-    from vllm import LLM, SamplingParams
-
     student_data_dir = output_dir / "student_data"
     student_data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Resume check
+    # Resume check — if all .pt files exist, skip entirely
     existing = {
         int(f.stem.split("_")[1])
         for f in student_data_dir.glob("sample_*.pt")
@@ -53,60 +52,59 @@ def vllm_generate(
     if tensor_parallel_size is None:
         tensor_parallel_size = torch.cuda.device_count() if torch.cuda.is_available() else 1
 
-    print(f"Phase 1 (vLLM): {len(existing)}/{len(dataset)} done, {len(remaining)} remaining (TP={tensor_parallel_size})")
+    # --- Step 1: vLLM generation in subprocess ---
+    # Check which samples still need token IDs generated (vs already having .pt files)
+    token_ids_dir = output_dir / "vllm_token_ids"
+    token_ids_dir.mkdir(parents=True, exist_ok=True)
 
-    # Build conversations for remaining samples
-    conversations = []
-    for i in remaining:
-        conversations.append([{"role": "user", "content": dataset[i]["problem"]}])
+    # Samples that have .pt files are done; samples that have token_ids are partially done
+    needs_generation = [
+        i for i in remaining
+        if not (token_ids_dir / f"sample_{i:03d}.json").exists()
+    ]
 
-    # --- Step 1: vLLM generation ---
-    print("Loading vLLM engine...")
-    llm = LLM(
-        model=model_name,
-        dtype="bfloat16",
-        tensor_parallel_size=tensor_parallel_size,
-        trust_remote_code=True,
-    )
+    if needs_generation:
+        print(f"Phase 1 (vLLM): generating {len(needs_generation)} responses in subprocess (TP={tensor_parallel_size})")
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "src.exp_2._vllm_subprocess",
+                "--model", model_name,
+                "--output-dir", str(token_ids_dir),
+                "--max-new-tokens", str(max_new_tokens),
+                "--tensor-parallel", str(tensor_parallel_size),
+                "--sample-indices", json.dumps(needs_generation),
+            ],
+            check=True,
+        )
+    else:
+        print(f"Phase 1: vLLM generation already done, {len(remaining)} samples need log-prob extraction")
 
-    sampling_params = SamplingParams(temperature=0, max_tokens=max_new_tokens)
+    # --- Step 2: HF forward pass for full-vocab log-probs (clean CUDA context) ---
+    # Only process samples that have token IDs but not .pt files
+    samples_needing_logprobs = [
+        i for i in remaining
+        if (token_ids_dir / f"sample_{i:03d}.json").exists()
+    ]
 
-    print(f"Generating {len(remaining)} responses with vLLM...")
-    outputs = llm.chat(conversations, sampling_params)
+    if not samples_needing_logprobs:
+        print("Phase 1 complete (all samples have log-probs)")
+        return
 
-    # Extract token IDs from vLLM outputs
-    generated_data = []
-    for idx, output in enumerate(outputs):
-        sample_idx = remaining[idx]
-        prompt_ids = list(output.prompt_token_ids)
-        gen_ids = list(output.outputs[0].token_ids)
-        generated_data.append({
-            "sample_idx": sample_idx,
-            "prompt_length": len(prompt_ids),
-            "full_ids": torch.tensor(prompt_ids + gen_ids, dtype=torch.long),
-            "gen_len": len(gen_ids),
-        })
-
-    print(f"vLLM generation complete. Generated {len(generated_data)} responses.")
-
-    # --- Step 2: Destroy vLLM engine ---
-    del llm, outputs
-    gc.collect()
-    torch.cuda.empty_cache()
-
-    # --- Step 3: HF forward pass for full-vocab log-probs ---
-    print("Loading HF model for log-prob extraction...")
+    print(f"Loading HF model for log-prob extraction ({len(samples_needing_logprobs)} samples)...")
     model, _ = load_model_and_tokenizer(model_name)
 
     with Progress() as progress:
         task = progress.add_task(
-            "Phase 1: Extracting log-probs", total=len(generated_data)
+            "Phase 1: Extracting log-probs", total=len(samples_needing_logprobs)
         )
-        for data in generated_data:
-            sample_idx = data["sample_idx"]
-            prompt_length = data["prompt_length"]
-            full_ids = data["full_ids"]
-            gen_len = data["gen_len"]
+        for sample_idx in samples_needing_logprobs:
+            token_file = token_ids_dir / f"sample_{sample_idx:03d}.json"
+            with open(token_file) as f:
+                token_data = json.load(f)
+
+            prompt_length = token_data["prompt_length"]
+            full_ids = torch.tensor(token_data["full_ids"], dtype=torch.long)
+            gen_len = token_data["gen_len"]
 
             if gen_len == 0:
                 print(f"  Sample {sample_idx}: no response generated, skipping")
@@ -118,8 +116,6 @@ def vllm_generate(
                 fwd = model(input_ids=full_ids.unsqueeze(0).to(model.device))
 
             logits = fwd.logits[0].float().cpu()
-            # logits[t] predicts token t+1
-            # logits[prompt_len-1 : prompt_len-1+gen_len] predict response tokens
             student_logits = logits[prompt_length - 1 : prompt_length - 1 + gen_len]
             log_probs = torch.log_softmax(student_logits, dim=-1).to(torch.bfloat16)
 
