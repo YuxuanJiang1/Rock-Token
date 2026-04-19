@@ -13,9 +13,6 @@ dependencies = [
     "accelerate>=1.6",
 ]
 
-[project.optional-dependencies]
-vllm = ["vllm>=0.19"]
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
