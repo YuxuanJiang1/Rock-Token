@@ -7,6 +7,8 @@ logprobs=-1 (full vocabulary log-probs), converts to tensors, and saves
 
 import argparse
 import json
+import sys
+import time
 from pathlib import Path
 
 import torch
@@ -30,17 +32,19 @@ def main():
 
     dataset = load_math500()
 
-    # Build conversations
-    conversations = []
-    for i in sample_indices:
-        conversations.append([{"role": "user", "content": dataset[i]["problem"]}])
+    conversations = [
+        [{"role": "user", "content": dataset[i]["problem"]}]
+        for i in sample_indices
+    ]
 
-    # Init vLLM with max_logprobs set to vocab size for full-vocab logprobs
+    # Get vocab size for max_logprobs
     from transformers import AutoConfig
     config = AutoConfig.from_pretrained(args.model, trust_remote_code=True)
     vocab_size = config.vocab_size
 
-    print(f"[vLLM] Loading model {args.model} (TP={args.tensor_parallel}, vocab={vocab_size})...")
+    # --- Stage 1: Load model ---
+    log(f"Loading model {args.model} (TP={args.tensor_parallel}, vocab={vocab_size})...")
+    t0 = time.time()
     llm = LLM(
         model=args.model,
         dtype="bfloat16",
@@ -48,23 +52,21 @@ def main():
         trust_remote_code=True,
         max_logprobs=vocab_size,
     )
+    log(f"Model loaded in {time.time() - t0:.1f}s")
 
-    # logprobs=-1 returns full vocabulary log-probs
+    # --- Stage 2: Generate ---
     sampling_params = SamplingParams(
         temperature=0, max_tokens=args.max_new_tokens, logprobs=-1
     )
-
-    print(f"[vLLM] Generating {len(conversations)} responses (with full-vocab logprobs)...")
+    log(f"Generating {len(conversations)} responses (with full-vocab logprobs)...")
+    t0 = time.time()
     outputs = llm.chat(conversations, sampling_params)
+    log(f"Generation complete in {time.time() - t0:.1f}s")
 
-    # Get vocab size from first output
-    first_logprobs = outputs[0].outputs[0].logprobs
-    if first_logprobs:
-        vocab_size = len(first_logprobs[0])
-    else:
-        raise RuntimeError("No logprobs returned. Check model and SamplingParams.")
-
-    print(f"[vLLM] Converting logprobs to tensors (vocab_size={vocab_size})...")
+    # --- Stage 3: Convert logprobs to tensors and save ---
+    total = len(outputs)
+    log(f"Converting logprobs and saving {total} samples (vocab_size={vocab_size})...")
+    t0 = time.time()
 
     for idx, output in enumerate(outputs):
         sample_idx = sample_indices[idx]
@@ -77,13 +79,13 @@ def main():
         prompt_length = len(prompt_ids)
 
         if gen_len == 0:
-            print(f"[vLLM] Sample {sample_idx}: no response, skipping")
+            log(f"  [{idx+1}/{total}] Sample {sample_idx}: no response, skipping")
             continue
 
         # Convert logprobs dicts to dense tensor
         log_probs = torch.full((gen_len, vocab_size), float("-inf"), dtype=torch.float32)
         for t, lp_dict in enumerate(gen_output.logprobs):
-            ids = torch.tensor([k for k in lp_dict.keys()], dtype=torch.long)
+            ids = torch.tensor(list(lp_dict.keys()), dtype=torch.long)
             vals = torch.tensor([v.logprob for v in lp_dict.values()], dtype=torch.float32)
             log_probs[t].scatter_(0, ids, vals)
 
@@ -96,9 +98,14 @@ def main():
             },
             output_dir / f"sample_{sample_idx:03d}.pt",
         )
-        print(f"[vLLM] Sample {sample_idx}: {gen_len} tokens saved")
+        log(f"  [{idx+1}/{total}] Sample {sample_idx}: {gen_len} tokens ({gen_len * vocab_size / 1e6:.1f}M logprobs)")
 
-    print(f"[vLLM] Done. Saved {len(outputs)} samples.")
+    log(f"All {total} samples saved in {time.time() - t0:.1f}s")
+
+
+def log(msg: str):
+    """Print with flush so output appears immediately in subprocess."""
+    print(f"[vLLM] {msg}", flush=True)
 
 
 if __name__ == "__main__":

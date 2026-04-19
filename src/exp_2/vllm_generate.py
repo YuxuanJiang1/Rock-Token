@@ -47,16 +47,17 @@ def vllm_generate(
 
     print(f"Phase 1 (vLLM): {len(existing)}/{len(dataset)} done, {len(remaining)} remaining (TP={tensor_parallel_size})")
 
-    result = subprocess.run(
-        [
-            sys.executable, "-m", "src.exp_2._vllm_subprocess",
-            "--model", model_name,
-            "--output-dir", str(student_data_dir),
-            "--max-new-tokens", str(max_new_tokens),
-            "--tensor-parallel", str(tensor_parallel_size),
-            "--sample-indices", json.dumps(remaining),
-        ],
-        check=True,
-    )
+    # Run vLLM in subprocess — stdout/stderr stream live to terminal
+    cmd = [
+        sys.executable, "-m", "src.exp_2._vllm_subprocess",
+        "--model", model_name,
+        "--output-dir", str(student_data_dir),
+        "--max-new-tokens", str(max_new_tokens),
+        "--tensor-parallel", str(tensor_parallel_size),
+        "--sample-indices", json.dumps(remaining),
+    ]
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        raise RuntimeError(f"vLLM subprocess failed with exit code {result.returncode}")
 
     print("Phase 1 (vLLM) complete")
