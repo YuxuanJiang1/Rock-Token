@@ -22,15 +22,29 @@ def run_phase1(
     output_dir: Path,
     max_new_tokens: int = 2048,
     batch_size: int = 4,
+    backend: str = "hf",
+    tensor_parallel_size: int = 1,
 ):
     """Generate student responses and save per-token log-probs.
 
-    Uses batched generation with left-padding for speed. After each batch,
-    extracts per-sample scores and saves individually for resume support.
+    Supports two backends:
+    - "vllm": vLLM generation + HF forward pass (fast, correct batching)
+    - "hf": HuggingFace generate with output_scores (fallback)
 
     Saves one file per sample to {output_dir}/student_data/sample_{i:03d}.pt.
     Skips samples whose files already exist (mid-phase resume).
     """
+    if backend == "vllm":
+        from src.exp_2.vllm_generate import vllm_generate
+
+        vllm_generate(
+            model_name=student_model_name,
+            output_dir=output_dir,
+            max_new_tokens=max_new_tokens,
+            tensor_parallel_size=tensor_parallel_size,
+        )
+        return
+
     student_data_dir = output_dir / "student_data"
     student_data_dir.mkdir(parents=True, exist_ok=True)
 
