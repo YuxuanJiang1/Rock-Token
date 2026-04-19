@@ -9,6 +9,9 @@ import os
 import tempfile
 from pathlib import Path
 
+# Must be set before vLLM import — prevents fork() deadlocks in pytest
+os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
+
 import pytest
 import torch
 
@@ -36,7 +39,8 @@ def _vllm_generate_and_forward(prompts, model_name, max_new_tokens):
     """
     # Step 1: vLLM generation
     conversations = [[{"role": "user", "content": p}] for p in prompts]
-    llm = LLM(model=model_name, dtype="bfloat16", tensor_parallel_size=1, trust_remote_code=True)
+    llm = LLM(model=model_name, dtype="bfloat16", tensor_parallel_size=1,
+              trust_remote_code=True, enforce_eager=True)
     sampling_params = SamplingParams(temperature=0, max_tokens=max_new_tokens)
     outputs = llm.chat(conversations, sampling_params)
 
