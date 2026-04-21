@@ -123,7 +123,7 @@ def evaluate(
             correct += 1
 
         year = sample["Year"]
-        prob_num = sample["Problem_Number"]
+        prob_num = sample["Problem Number"]
         per_year[year]["total"] += 1
         per_year[year]["correct"] += int(is_correct)
         per_problem[prob_num]["total"] += 1
