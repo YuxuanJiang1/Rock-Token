@@ -8,7 +8,9 @@ N_SAMPLES ?=
 
 # --- Exp 2: Rock Token Identification ---
 
-.PHONY: exp2 exp2-geometric exp2-phase1 exp2-phase2 exp2-phase3 test help
+MODEL   ?= $(STUDENT)
+
+.PHONY: exp2 exp2-geometric exp2-phase1 exp2-phase2 exp2-phase3 eval-aime test help
 
 exp2:  ## Run full pipeline (bayesian scoring, default)
 	uv run python src/exp_2/identify_rock_tokens.py \
@@ -37,6 +39,13 @@ exp2-phase3:  ## Run only Phase 3 (re-analyze, no GPU needed)
 	uv run python src/exp_2/identify_rock_tokens.py \
 		--student $(STUDENT) --teacher $(TEACHER) \
 		--phase 3 --scoring bayesian --top-k $(TOP_K) --output-dir $(OUTPUT)
+
+# --- Evaluation ---
+
+eval-aime:  ## Evaluate model on AIME (MODEL=..., N_SAMPLES=...)
+	uv run python src/analysis/eval_aime.py \
+		--model $(MODEL) --output results/aime_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
 
 # --- Testing ---
 
