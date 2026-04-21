@@ -91,6 +91,7 @@ def evaluate(
         tensor_parallel_size=tensor_parallel_size,
         trust_remote_code=True,
         seed=SEED,
+        max_model_len=32768,
     )
 
     sampling_params = SamplingParams(
