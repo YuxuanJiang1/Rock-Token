@@ -2,7 +2,7 @@
 Visualize rock-token occurrence data produced by rock_server.py.
 
 Modes (auto-detected from --files):
-  single     : one file  -> positional analysis + top-K bar chart
+  single     : one file  -> positional analysis + top-K bar chart + variance chart
   stability  : multiple files, same student key -> top-K rank stability vs sample size
   compare    : two files, same sample size, different students -> side-by-side top-K
 
@@ -75,8 +75,12 @@ def decode(tid):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def top_k_tokens(data, k, min_freq):
-    """Return DataFrame of top-k tokens by average KL, filtered by min_freq."""
+def top_k_tokens(data, df, k, min_freq):
+    """Return DataFrame of top-k tokens by average KL, filtered by min_freq.
+
+    Columns: token_id, token_str, avg_kl, freq, kl_var, kl_std
+    kl_var/kl_std are computed from per-occurrence records (population variance).
+    """
     avg_kl = data["average_kl"]
     freq   = data["frequencies"]
     mask   = freq >= min_freq
@@ -84,11 +88,15 @@ def top_k_tokens(data, k, min_freq):
     vals   = avg_kl[ids]
     top    = torch.topk(vals, k=min(k, len(ids)))
     tids   = ids[top.indices].tolist()
+
+    token_var = df.groupby("token_id")["kl"].var(ddof=0)
     return pd.DataFrame({
         "token_id":  tids,
         "token_str": [decode(t) for t in tids],
         "avg_kl":    top.values.tolist(),
         "freq":      freq[tids].tolist(),
+        "kl_var":    [float(token_var.get(t, float("nan"))) for t in tids],
+        "kl_std":    [float(token_var.get(t, float("nan")) ** 0.5) for t in tids],
     })
 
 def binned_mean(df, col, bins=30, max_val=None):
@@ -107,8 +115,8 @@ def binned_mean(df, col, bins=30, max_val=None):
 # ---------------------------------------------------------------------------
 # Mode detection
 # ---------------------------------------------------------------------------
-student_keys = [d[1].get("student_key", "?") for _, d, _ in datasets]
-sample_sizes = [d[1].get("samples_processed", 0) for _, d, _ in datasets]
+student_keys = [d.get("student_key", "?") for _, d, _ in datasets]
+sample_sizes = [d.get("samples_processed", 0) for _, d, _ in datasets]
 
 unique_students = set(student_keys)
 unique_sizes    = set(sample_sizes)
@@ -133,29 +141,47 @@ if mode == "single":
     _, data, df = datasets[0]
     label = f"{data.get('student_key','?')}  n={data.get('samples_processed','?')}"
 
-    fig = plt.figure(figsize=(16, 14))
-    fig.suptitle(f"Rock Token Positional Analysis\n{label}", fontsize=13, y=0.98)
+    fig = plt.figure(figsize=(16, 20))
+    fig.suptitle(f"Rock Token Positional Analysis\n{label}", fontsize=13, y=0.99)
 
-    gs = fig.add_gridspec(3, 2, hspace=0.45, wspace=0.35)
+    gs = fig.add_gridspec(4, 2, hspace=0.5, wspace=0.35)
 
-    # --- (0,0) Top-K bar chart ---
+    topk = top_k_tokens(data, df, args.top_k, args.min_freq)
+    tok_labels = [
+        f"{s}  (id={tid}, f={freq})"
+        for s, tid, freq in zip(topk["token_str"], topk["token_id"], topk["freq"])
+    ]
+
+    # --- (0,:) Top-K avg KL bar chart with std-dev error bars ---
     ax0 = fig.add_subplot(gs[0, :])
-    topk = top_k_tokens(data, args.top_k, args.min_freq)
     colors = plt.cm.Reds(np.linspace(0.4, 0.9, len(topk)))[::-1]
-    bars = ax0.barh(range(len(topk)), topk["avg_kl"], color=colors)
-    ax0.set_yticks(range(len(topk)))
-    ax0.set_yticklabels(
-        [f"{s}  (id={tid}, f={freq})"
-         for s, tid, freq in zip(topk["token_str"], topk["token_id"], topk["freq"])],
-        fontsize=8,
+    ax0.barh(
+        range(len(topk)), topk["avg_kl"], color=colors,
+        xerr=topk["kl_std"], error_kw=dict(ecolor="gray", capsize=3, linewidth=0.8),
     )
+    ax0.set_yticks(range(len(topk)))
+    ax0.set_yticklabels(tok_labels, fontsize=8)
     ax0.invert_yaxis()
-    ax0.set_xlabel("Average KL Divergence")
+    ax0.set_xlabel("Average KL Divergence  (error bars = ±1 std dev)")
     ax0.set_title(f"Top-{args.top_k} Rock Tokens by Average KL  (min_freq={args.min_freq})")
     ax0.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.4f"))
 
-    # --- (1,0) Mean KL by absolute position (binned) ---
-    ax1 = fig.add_subplot(gs[1, 0])
+    # --- (1,:) Top-K KL variance bar chart ---
+    ax_var = fig.add_subplot(gs[1, :])
+    colors_var = plt.cm.Purples(np.linspace(0.4, 0.9, len(topk)))[::-1]
+    ax_var.barh(range(len(topk)), topk["kl_var"], color=colors_var)
+    ax_var.set_yticks(range(len(topk)))
+    ax_var.set_yticklabels(tok_labels, fontsize=8)
+    ax_var.invert_yaxis()
+    ax_var.set_xlabel("KL Variance (population)")
+    ax_var.set_title(f"Top-{args.top_k} Rock Tokens — KL Variance")
+    ax_var.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.4f"))
+    x_max_var = topk["kl_var"].max()
+    for i, v in enumerate(topk["kl_var"]):
+        ax_var.text(v + x_max_var * 0.01, i, f"{v:.4f}", va="center", fontsize=7)
+
+    # --- (2,0) Mean KL by absolute position (binned) ---
+    ax1 = fig.add_subplot(gs[2, 0])
     cx, my = binned_mean(df, "abs_position", bins=40)
     ax1.plot(cx, my, color="steelblue", linewidth=1.5)
     ax1.fill_between(cx, my, alpha=0.2, color="steelblue")
@@ -163,8 +189,8 @@ if mode == "single":
     ax1.set_ylabel("Mean KL")
     ax1.set_title("Mean KL vs Sequence Position")
 
-    # --- (1,1) Mean KL by relative position (binned) ---
-    ax2 = fig.add_subplot(gs[1, 1])
+    # --- (2,1) Mean KL by relative position (binned) ---
+    ax2 = fig.add_subplot(gs[2, 1])
     cx, my = binned_mean(df, "rel_position", bins=40)
     ax2.plot(cx, my, color="darkorange", linewidth=1.5)
     ax2.fill_between(cx, my, alpha=0.2, color="darkorange")
@@ -172,8 +198,8 @@ if mode == "single":
     ax2.set_ylabel("Mean KL")
     ax2.set_title("Mean KL vs Relative Position")
 
-    # --- (2,0) Mean KL by line index ---
-    ax3 = fig.add_subplot(gs[2, 0])
+    # --- (3,0) Mean KL by line index ---
+    ax3 = fig.add_subplot(gs[3, 0])
     line_df = df[df["line_index"] <= args.max_line]
     grp = line_df.groupby("line_index")["kl"].mean()
     ax3.bar(grp.index, grp.values, color="mediumseagreen", width=0.7)
@@ -181,8 +207,8 @@ if mode == "single":
     ax3.set_ylabel("Mean KL")
     ax3.set_title("Mean KL vs Line Index (newline-delimited steps)")
 
-    # --- (2,1) Line-start effect ---
-    ax4 = fig.add_subplot(gs[2, 1])
+    # --- (3,1) Line-start effect ---
+    ax4 = fig.add_subplot(gs[3, 1])
     groups = [
         df[df["is_line_start"] & ~df["is_newline"]]["kl"].values,
         df[~df["is_line_start"] & ~df["is_newline"]]["kl"].values,
@@ -205,10 +231,10 @@ if mode == "single":
 elif mode == "stability":
     # Sort by sample size
     datasets = sorted(datasets, key=lambda x: x[1].get("samples_processed", 0))
-    sizes  = [d[1].get("samples_processed", 0)  for _, d, _ in datasets]
+    sizes  = [d.get("samples_processed", 0) for _, d, _ in datasets]
     label  = datasets[0][1].get("student_key", "?")
 
-    topk_dfs = [top_k_tokens(d, args.top_k, args.min_freq) for _, d, _ in datasets]
+    topk_dfs = [top_k_tokens(d, df, args.top_k, args.min_freq) for _, d, df in datasets]
 
     # --- Jaccard overlap with the largest-N run ---
     reference_ids = set(topk_dfs[-1]["token_id"])
@@ -278,12 +304,15 @@ elif mode == "compare":
     )
 
     for ax, (_, data, df) in zip(axes, datasets):
-        topk = top_k_tokens(data, args.top_k, args.min_freq)
+        topk = top_k_tokens(data, df, args.top_k, args.min_freq)
         key  = data.get("student_key", "?")
         n    = data.get("samples_processed", "?")
 
         colors = plt.cm.Reds(np.linspace(0.4, 0.9, len(topk)))[::-1]
-        ax.barh(range(len(topk)), topk["avg_kl"], color=colors)
+        ax.barh(
+            range(len(topk)), topk["avg_kl"], color=colors,
+            xerr=topk["kl_std"], error_kw=dict(ecolor="gray", capsize=3, linewidth=0.8),
+        )
         ax.set_yticks(range(len(topk)))
         ax.set_yticklabels(
             [f"{s}  (f={freq})"
@@ -291,13 +320,13 @@ elif mode == "compare":
             fontsize=8,
         )
         ax.invert_yaxis()
-        ax.set_xlabel("Average KL Divergence")
+        ax.set_xlabel("Average KL Divergence  (error bars = ±1 std dev)")
         ax.set_title(f"student={key}  n={n}\nTop-{args.top_k} Rock Tokens")
         ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.4f"))
 
     # Mark tokens that appear in both top-K lists
-    ids_left  = set(top_k_tokens(datasets[0][1], args.top_k, args.min_freq)["token_id"])
-    ids_right = set(top_k_tokens(datasets[1][1], args.top_k, args.min_freq)["token_id"])
+    ids_left  = set(top_k_tokens(datasets[0][1], datasets[0][2], args.top_k, args.min_freq)["token_id"])
+    ids_right = set(top_k_tokens(datasets[1][1], datasets[1][2], args.top_k, args.min_freq)["token_id"])
     shared = ids_left & ids_right
     if shared:
         shared_strs = ", ".join(decode(t) for t in sorted(shared))
