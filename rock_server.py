@@ -6,8 +6,8 @@ from datasets import load_dataset
 from tqdm import tqdm
 
 STUDENT_MODELS = {
-    "onpolicy":  "RockToken/qwen3_30b_a3b_to_4b_onpolicy_math_following5k",
-    "offpolicy": "RockToken/qwen3_30b_a3b_to_4b_offpolicy_math_first20k",
+    "onpolicy": "RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k",
+    "offpolicy": "RockToken/qwen3_30b_a3b_to_4b_offpolicy_20k",
 }
 TEACHER_ID = "Qwen/Qwen3-30B-A3B-Instruct-2507"
 MAX_NEW_TOKENS = 256
@@ -152,8 +152,12 @@ for i, item in enumerate(tqdm(sampled_dataset, desc="Processing Datasets")):
         gen_tokens_cpu = generated_tokens.cpu()
         kl_div_cpu = token_kl_divergence.cpu()
 
-        token_frequencies.scatter_add_(0, gen_tokens_cpu, torch.ones_like(gen_tokens_cpu, dtype=torch.long))
-        token_cumulative_kl.scatter_add_(0, gen_tokens_cpu, kl_div_cpu.to(torch.float64))
+        token_frequencies.scatter_add_(
+            0, gen_tokens_cpu, torch.ones_like(gen_tokens_cpu, dtype=torch.long)
+        )
+        token_cumulative_kl.scatter_add_(
+            0, gen_tokens_cpu, kl_div_cpu.to(torch.float64)
+        )
 
         # --- E. Per-Occurrence Positional Records ---
         seq_len = len(gen_tokens_cpu)
@@ -164,18 +168,20 @@ for i, item in enumerate(tqdm(sampled_dataset, desc="Processing Datasets")):
 
         for abs_pos, (tid, kl_val) in enumerate(zip(token_ids_list, kl_list)):
             is_newline = tid in newline_token_ids
-            occurrence_records.append({
-                "sample_idx":     i,
-                "token_id":       tid,
-                "kl":             kl_val,
-                "abs_position":   abs_pos,
-                "rel_position":   abs_pos / max(seq_len - 1, 1),
-                "line_index":     line_idx,
-                "position_in_line": pos_in_line,
-                "is_line_start":  pos_in_line == 0,
-                "is_newline":     is_newline,
-                "seq_len":        seq_len,
-            })
+            occurrence_records.append(
+                {
+                    "sample_idx": i,
+                    "token_id": tid,
+                    "kl": kl_val,
+                    "abs_position": abs_pos,
+                    "rel_position": abs_pos / max(seq_len - 1, 1),
+                    "line_index": line_idx,
+                    "position_in_line": pos_in_line,
+                    "is_line_start": pos_in_line == 0,
+                    "is_newline": is_newline,
+                    "seq_len": seq_len,
+                }
+            )
             if is_newline:
                 line_idx += 1
                 pos_in_line = 0
@@ -189,24 +195,26 @@ for i, item in enumerate(tqdm(sampled_dataset, desc="Processing Datasets")):
 print("Computing final averages...")
 valid_mask = token_frequencies > 0
 average_kl = torch.zeros_like(token_cumulative_kl)
-average_kl[valid_mask] = token_cumulative_kl[valid_mask] / token_frequencies[valid_mask].to(torch.float64)
+average_kl[valid_mask] = token_cumulative_kl[valid_mask] / token_frequencies[
+    valid_mask
+].to(torch.float64)
 
 rock_token_data = {
     # Run metadata
-    "student_id":       STUDENT_ID,
-    "student_key":      args.student,
-    "teacher_id":       TEACHER_ID,
+    "student_id": STUDENT_ID,
+    "student_key": args.student,
+    "teacher_id": TEACHER_ID,
     "samples_processed": SAMPLE_SIZE,
-    "vocab_size":       vocab_size,
+    "vocab_size": vocab_size,
     # Aggregated vocab-level stats
-    "token_ids":        torch.arange(vocab_size),
-    "frequencies":      token_frequencies,
-    "cumulative_kl":    token_cumulative_kl,
-    "average_kl":       average_kl,
+    "token_ids": torch.arange(vocab_size),
+    "frequencies": token_frequencies,
+    "cumulative_kl": token_cumulative_kl,
+    "average_kl": average_kl,
     # Per-occurrence positional records
     # Fields: sample_idx, token_id, kl, abs_position, rel_position,
     #         line_index, position_in_line, is_line_start, is_newline, seq_len
-    "occurrences":      occurrence_records,
+    "occurrences": occurrence_records,
 }
 
 torch.save(rock_token_data, OUTPUT_FILE)
