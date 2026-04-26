@@ -73,32 +73,32 @@ def run_phase1(config: dict, output_dir: Path) -> Path:
     )
     outputs = llm.chat(conversations, sampling)
 
-    # Collect results
+    # Collect results — discard truncated sequences
     sequences = []
     truncated = 0
+    total = 0
     for prompt_idx, output in enumerate(outputs):
         source = prompts[prompt_idx]["source"]
         prompt_ids = list(output.prompt_token_ids)
         for completion in output.outputs:
-            hit_length = completion.finish_reason == "length"
-            if hit_length:
+            total += 1
+            if completion.finish_reason == "length":
                 truncated += 1
+                continue  # discard truncated outputs
             sequences.append({
                 "prompt_idx": prompt_idx,
                 "source": source,
                 "prompt_token_ids": prompt_ids,
                 "output_token_ids": list(completion.token_ids),
                 "finish_reason": completion.finish_reason,
-                "truncated": hit_length,
             })
 
-    console.print(f"Generated {len(sequences)} total sequences")
+    console.print(f"Generated {total} total, kept {len(sequences)} (discarded {truncated} truncated)")
     if truncated:
         console.print(
-            f"[bold yellow]WARNING: {truncated}/{len(sequences)} sequences "
-            f"({truncated/len(sequences):.1%}) were truncated at "
-            f"max_new_tokens={gc['max_new_tokens']}. Consider increasing "
-            f"generation.max_new_tokens in config.yaml.[/bold yellow]"
+            f"[bold yellow]WARNING: {truncated}/{total} sequences "
+            f"({truncated/total:.1%}) were truncated at "
+            f"max_new_tokens={gc['max_new_tokens']} and discarded.[/bold yellow]"
         )
 
     # Save
