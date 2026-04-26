@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-04-25
+
+### Added
+- **Rock Token identification pipeline** (`src/identification/`):
+  - Phase 1: vLLM generation (temp=1.0, 3 outputs/prompt, 1500 mixed prompts)
+  - Phase 2: Two-pass KL measurement (teacher stays loaded, fits 2x A100-80GB)
+  - Phase 3+4: Recalcitrance criterion (relative threshold) + type aggregation (top 100)
+  - Sanity check plots: loss scatter (4-quadrant), rock fraction, entropy correlation
+- `config.yaml` for all model paths and hyperparameters
+- Makefile targets: `identify`, `identify-phase1`, `identify-phase2`, `identify-phase3`
+- `pyyaml` and `scipy` added to project dependencies
+
 ## [0.3.0] - 2026-04-25
 
 ### Added

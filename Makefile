@@ -1,6 +1,6 @@
 # Makefile — Rock Token experiments
 
-STUDENT ?= RockToken/qwen3_30b_a3b_to_4b_onpolicy_math_following5k
+STUDENT ?= RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k
 TEACHER ?= Qwen/Qwen3-30B-A3B-Instruct-2507
 OUTPUT  ?= results/exp2
 TOP_K   ?= 50
@@ -13,6 +13,7 @@ MODEL   ?= $(STUDENT)
 .PHONY: exp2 exp2-geometric exp2-phase1 exp2-phase2 exp2-phase3 \
        eval-aime eval-gsm8k eval-mmlu eval-humaneval eval-ifeval eval-all \
        baseline baseline-smoke summarize \
+       identify identify-phase1 identify-phase2 identify-phase3 \
        test help
 
 exp2:  ## Run full pipeline (bayesian scoring, default)
@@ -89,6 +90,22 @@ baseline-smoke:  ## Quick smoke-test baseline (10 samples, MODEL=...)
 summarize:  ## Summarize results in a directory (DIRS=..., LABELS=...)
 	uv run python src/evaluation/summarize_results.py \
 		--dirs $(DIRS) $(if $(LABELS),--labels $(LABELS))
+
+# --- Identification ---
+
+IDENT_DIR ?= results/identification
+
+identify:  ## Run full Rock Token identification pipeline
+	uv run python src/identification/run.py --output-dir $(IDENT_DIR)
+
+identify-phase1:  ## Run only Phase 1 (vLLM generation)
+	uv run python src/identification/run.py --phase 1 --output-dir $(IDENT_DIR)
+
+identify-phase2:  ## Run only Phase 2 (KL measurement, needs GPU)
+	uv run python src/identification/run.py --phase 2 --output-dir $(IDENT_DIR)
+
+identify-phase3:  ## Run Phase 3+4 + plots (CPU only)
+	uv run python src/identification/run.py --phase 3 --output-dir $(IDENT_DIR)
 
 # --- Testing ---
 
