@@ -1,10 +1,11 @@
 """CLI entry point: orchestrate the full Rock Token identification pipeline.
 
 Usage:
-    uv run python src/identification/run.py                  # full pipeline
-    uv run python src/identification/run.py --phase 1        # generation only
-    uv run python src/identification/run.py --phase 3        # classify + plots (CPU)
-    uv run python src/identification/run.py --config my.yaml # custom config
+    uv run python src/identification/run.py                          # on-policy (default)
+    uv run python src/identification/run.py --variant offpolicy      # off-policy
+    uv run python src/identification/run.py --phase 1                # generation only
+    uv run python src/identification/run.py --phase 3                # classify + plots (CPU)
+    uv run python src/identification/run.py --config my.yaml         # custom config
 """
 
 import argparse
@@ -29,18 +30,30 @@ def main():
         help="Run only this phase (default: run all phases)",
     )
     parser.add_argument(
-        "--output-dir", type=str, default="results/identification",
-        help="Output directory",
+        "--variant", type=str, default="onpolicy",
+        choices=["onpolicy", "offpolicy"],
+        help="Which distilled student to use (reads from config.yaml models section)",
+    )
+    parser.add_argument(
+        "--output-dir", type=str, default=None,
+        help="Output directory (default: results/identification/<variant>)",
     )
     args = parser.parse_args()
 
     console = Console()
     config = load_config(args.config)
-    output_dir = Path(args.output_dir)
+
+    # Resolve variant: point student_onpolicy at the chosen model
+    variant_key = f"student_{args.variant}"
+    config["models"]["student_onpolicy"] = config["models"][variant_key]
+
+    # Auto output dir based on variant
+    output_dir = Path(args.output_dir) if args.output_dir else Path(f"results/identification/{args.variant}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     console.print("[bold]Rock Token Identification Pipeline[/bold]")
     console.print(f"  Config: {args.config or 'config.yaml (default)'}")
+    console.print(f"  Variant: {args.variant}")
     console.print(f"  Output: {output_dir}")
     console.print(f"  Teacher: {config['models']['teacher']}")
     console.print(f"  theta_0: {config['models']['student_base']}")

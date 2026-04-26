@@ -93,19 +93,19 @@ summarize:  ## Summarize results in a directory (DIRS=..., LABELS=...)
 
 # --- Identification ---
 
-IDENT_DIR ?= results/identification
+VARIANT ?= onpolicy
 
-identify:  ## Run full Rock Token identification pipeline
-	uv run python src/identification/run.py --output-dir $(IDENT_DIR)
+identify:  ## Run full identification pipeline (VARIANT=onpolicy|offpolicy)
+	uv run python src/identification/run.py --variant $(VARIANT)
 
-identify-phase1:  ## Run only Phase 1 (vLLM generation)
-	uv run python src/identification/run.py --phase 1 --output-dir $(IDENT_DIR)
+identify-phase1:  ## Run only Phase 1 (VARIANT=onpolicy|offpolicy)
+	uv run python src/identification/run.py --phase 1 --variant $(VARIANT)
 
-identify-phase2:  ## Run only Phase 2 (KL measurement, needs GPU)
-	uv run python src/identification/run.py --phase 2 --output-dir $(IDENT_DIR)
+identify-phase2:  ## Run only Phase 2 (VARIANT=onpolicy|offpolicy)
+	uv run python src/identification/run.py --phase 2 --variant $(VARIANT)
 
-identify-phase3:  ## Run Phase 3+4 + plots (CPU only)
-	uv run python src/identification/run.py --phase 3 --output-dir $(IDENT_DIR)
+identify-phase3:  ## Run Phase 3+4 + plots (VARIANT=onpolicy|offpolicy, CPU only)
+	uv run python src/identification/run.py --phase 3 --variant $(VARIANT)
 
 # --- Testing ---
 
