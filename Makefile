@@ -93,18 +93,21 @@ summarize:  ## Summarize results in a directory (DIRS=..., LABELS=...)
 
 # --- Identification ---
 
-VARIANT ?= onpolicy
+_check-variant:
+ifndef VARIANT
+	$(error VARIANT is required. Usage: make identify VARIANT=onpolicy|offpolicy)
+endif
 
-identify:  ## Run full identification pipeline (VARIANT=onpolicy|offpolicy)
+identify: _check-variant  ## Run full identification pipeline (VARIANT=onpolicy|offpolicy)
 	uv run python src/identification/run.py --variant $(VARIANT)
 
-identify-phase1:  ## Run only Phase 1 (VARIANT=onpolicy|offpolicy)
+identify-phase1: _check-variant  ## Run only Phase 1 (VARIANT=onpolicy|offpolicy)
 	uv run python src/identification/run.py --phase 1 --variant $(VARIANT)
 
-identify-phase2:  ## Run only Phase 2 (VARIANT=onpolicy|offpolicy)
+identify-phase2: _check-variant  ## Run only Phase 2 (VARIANT=onpolicy|offpolicy)
 	uv run python src/identification/run.py --phase 2 --variant $(VARIANT)
 
-identify-phase3:  ## Run Phase 3+4 + plots (VARIANT=onpolicy|offpolicy, CPU only)
+identify-phase3: _check-variant  ## Run Phase 3+4 + plots (VARIANT=onpolicy|offpolicy, CPU only)
 	uv run python src/identification/run.py --phase 3 --variant $(VARIANT)
 
 # --- Testing ---
