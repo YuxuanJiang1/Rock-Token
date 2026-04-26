@@ -25,13 +25,21 @@ def load_mixed_prompts(
     rng = random.Random(seed)
     prompts: list[dict] = []
 
-    # MATH train (competition math)
+    # MATH train (competition math) — load all 7 subjects from EleutherAI's copy
+    # (hendrycks/competition_math uses a deprecated loading script)
     console.print("Loading MATH train...")
-    math_ds = load_dataset("hendrycks/competition_math", split="train", trust_remote_code=True)
-    indices = rng.sample(range(len(math_ds)), min(math_count, len(math_ds)))
+    math_subjects = [
+        "algebra", "counting_and_probability", "geometry",
+        "intermediate_algebra", "number_theory", "prealgebra", "precalculus",
+    ]
+    all_math = []
+    for subject in math_subjects:
+        ds = load_dataset("EleutherAI/hendrycks_math", subject, split="train")
+        all_math.extend(ds)
+    indices = rng.sample(range(len(all_math)), min(math_count, len(all_math)))
     for i in indices:
-        prompts.append({"prompt": math_ds[i]["problem"], "source": "math"})
-    console.print(f"  MATH: {len(indices)} prompts")
+        prompts.append({"prompt": all_math[i]["problem"], "source": "math"})
+    console.print(f"  MATH: {len(indices)} prompts ({len(all_math)} total available)")
 
     # GSM8K train (grade-school math)
     console.print("Loading GSM8K train...")
