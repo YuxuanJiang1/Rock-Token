@@ -1,6 +1,11 @@
 import torch
 
-from src.identification.measure import compute_kl_per_token, compute_entropy_per_token
+from src.identification.measure import (
+    compute_kl_per_token,
+    compute_kl_from_cache,
+    compute_entropy_per_token,
+    _build_batches,
+)
 
 
 def test_kl_identical_distributions_is_zero():
@@ -46,3 +51,41 @@ def test_entropy_peaked_is_near_zero():
     logits[:, 0] = 100.0  # all mass on token 0
     entropy = compute_entropy_per_token(logits)
     assert (entropy < 0.01).all()
+
+
+def test_kl_from_cache_matches_exact():
+    """Top-K cached KL should closely match exact KL with peaked distributions."""
+    torch.manual_seed(42)
+    # Scale up logits to make distribution peaked (like real LMs)
+    teacher_logits = torch.randn(5, 100) * 5.0
+    student_logits = torch.randn(5, 100) * 5.0
+
+    exact_kl = compute_kl_per_token(teacher_logits, student_logits)
+
+    # Build cache (top-50 of 100 — with peaked distributions, captures >99% of mass)
+    log_probs = torch.log_softmax(teacher_logits.float(), dim=-1)
+    top_log_probs, top_indices = log_probs.topk(50, dim=-1)
+    cache = {"top_indices": top_indices, "top_log_probs": top_log_probs}
+
+    cached_kl = compute_kl_from_cache(cache, student_logits)
+
+    assert cached_kl.shape == exact_kl.shape
+    assert torch.allclose(cached_kl, exact_kl, atol=0.01), (
+        f"Max diff: {(cached_kl - exact_kl).abs().max()}"
+    )
+
+
+def test_build_batches_respects_token_limit():
+    """Batches should not exceed max_batch_tokens."""
+    sequences = [
+        {"prompt_token_ids": [0] * 100, "output_token_ids": [0] * 900},  # 1000
+        {"prompt_token_ids": [0] * 100, "output_token_ids": [0] * 900},  # 1000
+        {"prompt_token_ids": [0] * 100, "output_token_ids": [0] * 900},  # 1000
+        {"prompt_token_ids": [0] * 500, "output_token_ids": [0] * 4500}, # 5000
+    ]
+    batches = _build_batches(sequences, max_batch_tokens=3000)
+    # First 3 sequences (1000 each) can fit in one batch: 3 × 1000 = 3000
+    # Fourth (5000) must be alone
+    assert len(batches) == 2
+    assert len(batches[0]) == 3
+    assert len(batches[1]) == 1
