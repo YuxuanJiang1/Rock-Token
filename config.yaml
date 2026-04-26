@@ -1,0 +1,28 @@
+models:
+  teacher: "Qwen/Qwen3-30B-A3B-Instruct-2507"
+  student_base: "Qwen/Qwen3-4B-Instruct-2507"
+  student_onpolicy: "RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k"
+  student_offpolicy: "RockToken/qwen3_30b_a3b_to_4b_offpolicy_20k"
+
+generation:
+  temperature: 1.0
+  num_outputs_per_prompt: 3
+  max_new_tokens: 2048
+
+prompts:
+  math_train_count: 500
+  gsm8k_train_count: 500
+  mbpp_train_count: 300
+  alpaca_count: 200
+  seed: 42
+
+identification:
+  tau_high_percentile: 80
+  delta_percentile: 20
+  min_frequency: 10
+  top_k: 100
+
+compute:
+  tensor_parallel_size: 2
+  max_model_len: 32768
+  seed: 42
