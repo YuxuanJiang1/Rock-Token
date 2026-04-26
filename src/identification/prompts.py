@@ -27,7 +27,7 @@ def load_mixed_prompts(
 
     # MATH train (competition math)
     console.print("Loading MATH train...")
-    math_ds = load_dataset("hendrycks/competition_math", split="train")
+    math_ds = load_dataset("hendrycks/competition_math", split="train", trust_remote_code=True)
     indices = rng.sample(range(len(math_ds)), min(math_count, len(math_ds)))
     for i in indices:
         prompts.append({"prompt": math_ds[i]["problem"], "source": "math"})
