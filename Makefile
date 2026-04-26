@@ -10,7 +10,10 @@ N_SAMPLES ?=
 
 MODEL   ?= $(STUDENT)
 
-.PHONY: exp2 exp2-geometric exp2-phase1 exp2-phase2 exp2-phase3 eval-aime test help
+.PHONY: exp2 exp2-geometric exp2-phase1 exp2-phase2 exp2-phase3 \
+       eval-aime eval-gsm8k eval-mmlu eval-humaneval eval-ifeval eval-all \
+       baseline baseline-smoke summarize \
+       test help
 
 exp2:  ## Run full pipeline (bayesian scoring, default)
 	uv run python src/exp_2/identify_rock_tokens.py \
@@ -46,6 +49,46 @@ eval-aime:  ## Evaluate model on AIME (MODEL=..., N_SAMPLES=...)
 	uv run python src/analysis/eval_aime.py \
 		--model $(MODEL) --output results/aime_$(subst /,_,$(MODEL)).json \
 		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+eval-gsm8k:  ## Evaluate model on GSM8K (MODEL=..., N_SAMPLES=...)
+	uv run python src/evaluation/eval_gsm8k.py \
+		--model $(MODEL) --output results/gsm8k_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+eval-mmlu:  ## Evaluate model on MMLU 5-shot (MODEL=..., N_SAMPLES=...)
+	uv run python src/evaluation/eval_mmlu.py \
+		--model $(MODEL) --output results/mmlu_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+eval-humaneval:  ## Evaluate model on HumanEval pass@1 (MODEL=..., N_SAMPLES=...)
+	uv run python src/evaluation/eval_humaneval.py \
+		--model $(MODEL) --output results/humaneval_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+eval-ifeval:  ## Evaluate model on IF-Eval (MODEL=..., N_SAMPLES=...)
+	uv run python src/evaluation/eval_ifeval.py \
+		--model $(MODEL) --output results/ifeval_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+eval-all:  ## Run all benchmarks (MODEL=..., N_SAMPLES=...)
+	$(MAKE) eval-gsm8k eval-mmlu eval-humaneval eval-ifeval
+
+# --- Baseline ---
+
+BASELINE_DIR ?= results/baseline
+
+baseline:  ## Run full baseline (all benchmarks, MODEL=...)
+	uv run python src/evaluation/run_baseline.py \
+		--model $(MODEL) --output-dir $(BASELINE_DIR) \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+baseline-smoke:  ## Quick smoke-test baseline (10 samples, MODEL=...)
+	uv run python src/evaluation/run_baseline.py \
+		--model $(MODEL) --output-dir results/smoke --n-samples 10
+
+summarize:  ## Summarize results in a directory (DIRS=..., LABELS=...)
+	uv run python src/evaluation/summarize_results.py \
+		--dirs $(DIRS) $(if $(LABELS),--labels $(LABELS))
 
 # --- Testing ---
 

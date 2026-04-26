@@ -11,7 +11,12 @@ dependencies = [
     "rich>=14.0",
     "numpy>=2.2",
     "accelerate>=1.6",
+    "matplotlib>=3.9",
+    "seaborn>=0.13.2",
 ]
+
+[project.optional-dependencies]
+gpu = ["vllm>=0.8"]
 
 [build-system]
 requires = ["hatchling"]
