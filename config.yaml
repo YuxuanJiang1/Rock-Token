@@ -19,8 +19,8 @@ prompts:
 identification:
   tau_high_percentile: 80
   delta_percentile: 20
-  min_frequency: 10
-  top_k: 100
+  min_frequency: 30
+  top_k: 200
 
 compute:
   tensor_parallel_size: 2

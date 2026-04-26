@@ -112,6 +112,14 @@ def aggregate_to_types(
         results.append(entry)
 
     results.sort(key=lambda x: x["rock_rate"], reverse=True)
+
+    # Add both rankings
+    for i, entry in enumerate(results):
+        entry["rank_by_rate"] = i + 1
+    by_count = sorted(results, key=lambda x: x["rock_count"], reverse=True)
+    for i, entry in enumerate(by_count):
+        entry["rank_by_count"] = i + 1
+
     return results[:top_k]
 
 
@@ -166,26 +174,25 @@ def run_identification(config: dict, output_dir: Path) -> Path:
     tokenizer = AutoTokenizer.from_pretrained(
         config["models"]["student_onpolicy"], trust_remote_code=True
     )
-    for rank, entry in enumerate(results, 1):
-        entry["rank"] = rank
+    for entry in results:
         entry["token_string"] = tokenizer.decode([entry["token_id"]])
 
-    # Print table
-    table = Table(title=f"Top {len(results)} Rock Tokens")
-    table.add_column("#", justify="right", style="dim")
+    # Print rate-ranked table (top 30)
+    table = Table(title=f"Top {len(results)} Rock Tokens (by rate)")
+    table.add_column("Rate#", justify="right", style="dim")
+    table.add_column("Cnt#", justify="right", style="dim")
     table.add_column("Token", style="cyan")
-    table.add_column("ID", justify="right")
     table.add_column("Freq", justify="right")
-    table.add_column("Rock#", justify="right")
+    table.add_column("Rock", justify="right")
     table.add_column("Rate", justify="right", style="bold")
-    table.add_column("Avg KL₀", justify="right")
-    table.add_column("Avg KL*", justify="right")
+    table.add_column("KL₀", justify="right")
+    table.add_column("KL*", justify="right")
 
     for entry in results[:30]:
         table.add_row(
-            str(entry["rank"]),
+            str(entry["rank_by_rate"]),
+            str(entry["rank_by_count"]),
             repr(entry["token_string"]),
-            str(entry["token_id"]),
             str(entry["frequency"]),
             str(entry["rock_count"]),
             f"{entry['rock_rate']:.3f}",
@@ -193,6 +200,31 @@ def run_identification(config: dict, output_dir: Path) -> Path:
             f"{entry.get('avg_loss_after', 0):.3f}",
         )
     console.print(table)
+
+    # Print count-ranked table (top 30)
+    by_count = sorted(results, key=lambda x: x["rock_count"], reverse=True)
+    table2 = Table(title="Top Rock Tokens (by absolute count)")
+    table2.add_column("Cnt#", justify="right", style="dim")
+    table2.add_column("Rate#", justify="right", style="dim")
+    table2.add_column("Token", style="cyan")
+    table2.add_column("Freq", justify="right")
+    table2.add_column("Rock", justify="right")
+    table2.add_column("Rate", justify="right", style="bold")
+    table2.add_column("KL₀", justify="right")
+    table2.add_column("KL*", justify="right")
+
+    for entry in by_count[:30]:
+        table2.add_row(
+            str(entry["rank_by_count"]),
+            str(entry["rank_by_rate"]),
+            repr(entry["token_string"]),
+            str(entry["frequency"]),
+            str(entry["rock_count"]),
+            f"{entry['rock_rate']:.3f}",
+            f"{entry.get('avg_loss_before', 0):.3f}",
+            f"{entry.get('avg_loss_after', 0):.3f}",
+        )
+    console.print(table2)
 
     # Save JSON
     thresholds = {
@@ -224,11 +256,21 @@ def run_identification(config: dict, output_dir: Path) -> Path:
         json.dump(output_data, f, indent=2)
     console.print(f"Saved {len(results)} Rock Tokens to {output_json}")
 
-    csv_path = output_dir / "rock_tokens.csv"
+    # CSV: rate-ranked
+    csv_path = output_dir / "rock_tokens_by_rate.csv"
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=results[0].keys())
         writer.writeheader()
         writer.writerows(results)
-    console.print(f"Saved CSV to {csv_path}")
+    console.print(f"Saved rate-ranked CSV to {csv_path}")
+
+    # CSV: count-ranked
+    by_count_all = sorted(results, key=lambda x: x["rock_count"], reverse=True)
+    csv_count_path = output_dir / "rock_tokens_by_count.csv"
+    with open(csv_count_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=by_count_all[0].keys())
+        writer.writeheader()
+        writer.writerows(by_count_all)
+    console.print(f"Saved count-ranked CSV to {csv_count_path}")
 
     return output_json
