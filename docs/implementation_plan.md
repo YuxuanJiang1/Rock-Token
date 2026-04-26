@@ -6,7 +6,7 @@ This document covers the full pipeline for studying Recalcitrant Tokens (Rock To
 
 ## Part 1: Identifying Rock Tokens
 
-You start with a trained student model and need to extract a workable set of N Rock Tokens (typically N=100) for downstream experiments. The pipeline has four phases: generate, measure, filter, aggregate.
+You start with a trained student model and need to extract a workable set of N Rock Tokens (typically N=200) for downstream experiments. The pipeline has four phases: generate, measure, filter, aggregate.
 
 ### What You Need
 
@@ -112,11 +112,21 @@ The full identification pipeline runs in under one GPU-day. The expensive work �
 
 ## Part 2: Systematic Masking Experiments
 
-You now have 100 Rock Tokens. The goal of this phase is to determine which are Pillars (essential — removal hurts) and which are Stumbling Blocks (harmful — removal helps), and to extract findings strong enough to anchor a paper. The experiments are ordered from cheap-and-foundational to expensive-but-decisive.
+You now have 200 Rock Tokens. The goal of this phase is to determine which are Pillars (essential — removal hurts) and which are Stumbling Blocks (harmful — removal helps), and to extract findings strong enough to anchor a paper. The experiments are ordered from cheap-and-foundational to expensive-but-decisive.
 
 ### Step 0: Establish a Measurement Baseline
 
-Before any masking, build the evaluation harness. Pick 3–4 benchmarks that test different capabilities — GSM8K (math reasoning), HumanEval (code), IF-Eval (instruction following), and MMLU (general knowledge) is a reasonable spread. Run the unmasked student three times with different seeds on each benchmark to establish variance.
+Before any masking, build the evaluation harness. The benchmarks focus on math competition reasoning (the student's training domain) plus instruction following:
+
+| Benchmark | Source | Size | Answer format | Role |
+|-----------|--------|------|---------------|------|
+| MATH-500 | `HuggingFaceH4/MATH-500` | 500 | LaTeX (`\boxed{}`) | Workhorse — high statistical power |
+| AIME 2024 | `HuggingFaceH4/aime_2024` | 30 | Integer (0–999) | Prestige — hard competition math |
+| AIME 2025 | `MathArena/aime_2025` | 30 | Integer | Prestige — hard competition math |
+| HMMT Feb 2025 | `MathArena/hmmt_feb_2025` | 30 | LaTeX expression | Prestige — hardest math |
+| IF-Eval | `google/IFEval` | 541 | Constraint checkers | Non-math control |
+
+Run the unmasked student three times with different seeds on each benchmark to establish variance.
 
 Record not just accuracy but also output length, format compliance, and held-out perplexity. These secondary metrics catch cases where masking leaves accuracy unchanged but destroys output coherence — a common failure mode that pure accuracy hides.
 
@@ -124,17 +134,17 @@ You need this baseline because every downstream claim takes the form "removing X
 
 ### Step 1: Individual Token Knockout
 
-Mask one Rock Token at a time by setting its logit to −∞ during generation, then run the full evaluation suite. This produces a 100-row table of marginal effects:
+Mask one Rock Token at a time by setting its logit to −∞ during generation, then run the full evaluation suite. This produces a 200-row table of marginal effects:
 
 ```
-Token_ID | Token_Text | GSM8K_Δ | HumanEval_Δ | IFEval_Δ | Length_Δ | PPL_Δ
+Token_ID | Token_Text | MATH500_Δ | AIME24_Δ | AIME25_Δ | HMMT25_Δ | IFEval_Δ | Length_Δ | PPL_Δ
 ```
 
-Sort by the GSM8K column. Tokens where removal hurts performance are Pillar candidates; tokens where removal helps are Stumbling Block candidates; tokens where removal does nothing are Neutral — high-loss but functionally inert. The Neutral category is probably the largest, and identifying it is itself a finding.
+Sort by MATH-500 Δ (highest statistical power). Use AIME/HMMT as confirmatory signals. Tokens where removal hurts performance are Pillar candidates; tokens where removal helps are Stumbling Block candidates; tokens where removal does nothing are Neutral — high-loss but functionally inert. The Neutral category is probably the largest, and identifying it is itself a finding.
 
-Also look for **task-specific effects**. A token that's a Pillar for math but a Stumbling Block for code is more interesting than one that's uniformly Pillar — it suggests token roles are task-dependent rather than intrinsic. Cross-task disagreement is a story worth telling.
+Also look for **task-specific effects**. A token that's a Pillar on AIME (easier competition math) but a Stumbling Block on HMMT (harder, LaTeX-answer problems) is interesting — it suggests token roles depend on problem difficulty. Cross-benchmark disagreement between math and IF-Eval is also worth reporting.
 
-Cost: 100 evaluation runs, no retraining. Roughly 1–2 GPU-days.
+Cost: 200 evaluation runs, no retraining. Roughly 2–4 GPU-days.
 
 ### Step 2: Categorize with Statistical Backing
 
@@ -150,15 +160,23 @@ For each token, run a paired bootstrap test against the baseline (resample the t
 
 Set ε from your Step 0 variance estimate, typically 1–2% absolute accuracy.
 
-Then build a 100×4 matrix of (token × benchmark) categories and ask: how often does each token receive the same category across tasks? Tokens that are consistently Pillar everywhere are the safest claim. Tokens that flip categories across tasks are the most interesting claim.
+Then build a 200×5 matrix of (token × benchmark) categories and ask: how often does each token receive the same category across tasks? Tokens that are consistently Pillar everywhere are the safest claim. Tokens that flip categories across tasks are the most interesting claim.
 
-Finally, correlate the categories with token features — entropy, frequency, POS tag, position in sequence. This tells you _why_ certain tokens are Pillars or Stumbling Blocks, not just _which_ ones are. If high-entropy Rock Tokens cluster as Pillars and low-entropy Rock Tokens cluster as Stumbling Blocks, you have a clean connection to the forking tokens literature.
+Finally, correlate the categories with token features — entropy, frequency, gradient magnitude, POS tag, position in sequence, and information content. This tells you _why_ certain tokens are Pillars or Stumbling Blocks, not just _which_ ones are.
+
+**Working hypotheses to test:**
+
+_Pillar tokens_ are expected to be: (1) **decision-critical tokens** — tokens at points where the next reasoning step is determined, (2) **reasoning structure tokens** — discourse markers like "therefore", "hence", "so", and tokens at step boundaries (after `\n\n`, numbered steps), (3) **attribution-focus tokens** — tokens that anchor the model's attention pattern for downstream computation.
+
+_Stumbling Block tokens_ are expected to be: (1) **high-gradient tokens** — tokens that produce outsized gradient updates during OPD, pulling the student away from the teacher, (2) **high-entropy tokens** — positions where the student is genuinely uncertain and wastes capacity defending a diffuse distribution, (3) **high-information tokens** — tokens with high surprisal under the teacher that the student cannot reliably model at its capacity.
+
+Testing these hypotheses requires measuring: student entropy, teacher entropy, gradient norm (via a single backward pass on a held-out batch), token position relative to step boundaries, and mutual information between the token and its context.
 
 ### Step 3: Cumulative Removal Curves
 
 Individual knockouts show marginal effects. Cumulative removal shows how effects compound and reveals the optimal removal fraction.
 
-**Greedy Stumbling Block removal**: Sort tokens by Δ, most positive first. Mask cumulatively — top 1, top 2, top 5, top 10, top 20, ..., top 100 — and evaluate at each point. You expect the curve to rise initially (removing real Stumbling Blocks helps), plateau (Neutrals don't matter), then crash (you've started removing Pillars). **The location of the crash point is a key finding.** A crash at 60 means you can safely remove most Rock Tokens; a crash at 10 means most Rock Tokens are essential.
+**Greedy Stumbling Block removal**: Sort tokens by Δ, most positive first. Mask cumulatively — top 1, top 2, top 5, top 10, top 20, top 50, ..., top 200 — and evaluate at each point. You expect the curve to rise initially (removing real Stumbling Blocks helps), plateau (Neutrals don't matter), then crash (you've started removing Pillars). **The location of the crash point is a key finding.** A crash at 60 means you can safely remove most Rock Tokens; a crash at 10 means most Rock Tokens are essential.
 
 **Greedy Pillar removal**: Same procedure but sort most-negative-first. This curve drops immediately and the rate of drop tells you how concentrated Pillar effects are.
 
@@ -168,19 +186,21 @@ This produces the paper's most compelling figure — three curves on one plot. R
 
 ### Step 4: Structured Group Masking
 
-Pairwise interaction testing across 100 tokens means 4,950 pairs — too expensive. Instead, test interactions at the level of meaningful groups, which is both cheaper and more interpretable.
+Pairwise interaction testing across 200 tokens means 19,900 pairs — too expensive. Instead, test interactions at the level of meaningful groups, which is both cheaper and more interpretable.
 
-**Semantic groups**: Cluster Rock Tokens by type from your Step 2 feature analysis — punctuation/formatting, reasoning connectives, math symbols, function words, rare vocabulary. Mask each group as a unit. If removing all punctuation Rock Tokens helps but no individual punctuation token had a significant effect, you've found a collective Stumbling Block effect that individual knockouts missed.
+**Semantic groups**: Cluster Rock Tokens by type from your Step 2 feature analysis — reasoning connectives ("therefore", "however", "so"), math symbols, code/technical vocabulary, function words, formatting tokens. Mask each group as a unit. If removing all reasoning connective Rock Tokens hurts but no individual connective had a significant effect, you've found a collective Pillar effect that individual knockouts missed.
 
-**Positional groups**: Split by where tokens appear in sequences — early, middle, late, or specifically at transition points (right after `\n\n` or step markers). If transition-position Rock Tokens are overwhelmingly Pillars, that connects directly to the forking tokens story.
+**Positional groups**: Split by where tokens appear in sequences — early, middle, late, or specifically at step boundaries (right after `\n\n`, numbered steps, "Step N:"). The Pillar hypothesis predicts that step-boundary tokens are decision-critical and their removal should hurt. This group directly tests whether Rock Tokens at reasoning structure positions behave differently from those in the middle of a reasoning step.
 
-**Entropy-stratified groups**: Split Rock Tokens into high-entropy (top half) and low-entropy (bottom half) by student entropy at those positions. The hypothesis worth testing: high-entropy Rocks are Pillars (the student is uncertain and _needs_ to be), low-entropy Rocks are Stumbling Blocks (the student is confidently wrong and wastes capacity defending that wrong answer).
+**Entropy-stratified groups**: Split Rock Tokens into high-entropy (top half) and low-entropy (bottom half) by student entropy at those positions. The Stumbling Block hypothesis predicts that high-entropy Rocks are Stumbling Blocks (the student wastes capacity on a diffuse distribution it can't resolve). The Pillar hypothesis predicts that low-entropy Rocks at decision points are Pillars (confidently wrong but structurally necessary).
+
+**Gradient-stratified groups**: Split Rock Tokens by gradient magnitude (from the backward pass in Step 2). High-gradient Rock Tokens are Stumbling Block candidates — they produce outsized updates that destabilize the student. Low-gradient Rock Tokens that are still high-loss are Pillar candidates — the student has learned to route around them.
 
 Cost: ~15–20 evaluation runs total. Very cheap, very informative.
 
 ### Step 5: Pairwise Interactions (If Budget Allows)
 
-From the prior steps, select the 10 strongest Pillars and 10 strongest Stumbling Blocks. Test all 100 cross-category pairs by masking both simultaneously and comparing the joint effect to the sum of individual effects.
+From the prior steps, select the 10 strongest Pillars and 10 strongest Stumbling Blocks. Test all 100 cross-category pairs (10×10) by masking both simultaneously and comparing the joint effect to the sum of individual effects.
 
 Two outcomes are paper-worthy:
 
@@ -211,7 +231,7 @@ Run six configurations to make the claim airtight:
 | Stumbling Block mask | Identified Stumbling Blocks       | The main claim                               |
 | Random mask (same %) | Random tokens, matched proportion | Controls for "fewer loss terms = less noise" |
 | Pillar mask          | Identified Pillars                | Should hurt — validates taxonomy             |
-| All Rock Tokens      | All 100                           | Tests whether indiscriminate removal works   |
+| All Rock Tokens      | All 200                           | Tests whether indiscriminate removal works   |
 | Easy Token mask      | Low-loss tokens                   | Controls for "masking any category helps"    |
 
 After each run converges, re-identify Rock Tokens in the new model. The set of Rock Tokens after Stumbling Block removal — compared to the original set — is what feeds into the Pillar rebuilding analysis: do new Rock Tokens emerge at different positions? Are they Pillar-like? This is where the "do Pillars rebuild?" question gets answered.
@@ -222,9 +242,9 @@ Cost: 6 full OPD runs. This is the expensive part — 2–3 weeks on 8×A100 —
 
 Pull the findings into 3–4 headline claims. Strong NeurIPS papers tend to have a structure like this:
 
-- **The census** — "Of 100 Rock Tokens, X are Strong Pillars, Y are Stumbling Blocks, Z are Neutral." Sets the empirical landscape.
-- **The efficiency curve** — "Removing the top K Stumbling Blocks improves benchmark Y by Δ% and accelerates convergence by factor F." Concrete, quotable, useful.
-- **The feature story** — "Stumbling Blocks are predicted by [low entropy + non-transition position + high frequency]." Explains _why_, not just _what_.
+- **The census** — "Of 200 Rock Tokens, X are Strong Pillars, Y are Stumbling Blocks, Z are Neutral." Sets the empirical landscape.
+- **The efficiency curve** — "Removing the top K Stumbling Blocks improves AIME/HMMT accuracy by Δ% and accelerates convergence by factor F." Concrete, quotable, useful.
+- **The feature story** — "Stumbling Blocks are predicted by [high gradient + high entropy + high information content]. Pillars are predicted by [decision-critical position + reasoning structure + step boundaries]." Explains _why_, not just _what_.
 - **The rebuilding story** — "After Stumbling Block removal, M new Rock Tokens emerge, of which most are Pillar-like at reasoning-critical positions." Suggests the student reorganizes its capacity allocation when freed from noisy gradients.
 
 ### Priority Ordering Under Compute Constraints

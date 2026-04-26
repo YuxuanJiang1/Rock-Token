@@ -14,6 +14,9 @@ MODEL   ?= $(STUDENT)
        eval-aime eval-gsm8k eval-mmlu eval-humaneval eval-ifeval eval-all \
        baseline baseline-smoke summarize \
        identify identify-phase1 identify-phase2 identify-phase3 \
+       masking-baseline masking-baseline-smoke \
+       masking-eval-math500 masking-eval-aime24 masking-eval-aime25 \
+       masking-eval-hmmt masking-eval-ifeval \
        test help
 
 exp2:  ## Run full pipeline (bayesian scoring, default)
@@ -109,6 +112,44 @@ identify-phase2: _check-variant  ## Run only Phase 2 (VARIANT=onpolicy|offpolicy
 
 identify-phase3: _check-variant  ## Run Phase 3+4 + plots (VARIANT=onpolicy|offpolicy, CPU only)
 	uv run python src/identification/run.py --phase 3 --variant $(VARIANT)
+
+# --- Part 2: Masking Experiments ---
+
+MASKING_DIR ?= results/masking/baseline
+
+masking-baseline:  ## Run baseline on all 4 models × 5 benchmarks (MASKING_DIR=...)
+	uv run python src/masking/run_baseline.py \
+		--output-dir $(MASKING_DIR) \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+masking-baseline-smoke:  ## Quick smoke test (5 samples, MASKING_DIR=...)
+	uv run python src/masking/run_baseline.py \
+		--output-dir results/masking/smoke --n-samples 5
+
+masking-eval-math500:  ## Eval single model on MATH-500 (MODEL=...)
+	uv run python src/masking/eval_math500.py \
+		--model $(MODEL) --output results/masking/math500_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+masking-eval-aime24:  ## Eval single model on AIME 2024 (MODEL=...)
+	uv run python src/masking/eval_aime.py --year 2024 \
+		--model $(MODEL) --output results/masking/aime2024_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+masking-eval-aime25:  ## Eval single model on AIME 2025 (MODEL=...)
+	uv run python src/masking/eval_aime.py --year 2025 \
+		--model $(MODEL) --output results/masking/aime2025_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+masking-eval-hmmt:  ## Eval single model on HMMT Feb 2025 (MODEL=...)
+	uv run python src/masking/eval_hmmt.py \
+		--model $(MODEL) --output results/masking/hmmt25_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+masking-eval-ifeval:  ## Eval single model on IF-Eval (MODEL=...)
+	uv run python src/masking/eval_ifeval.py \
+		--model $(MODEL) --output results/masking/ifeval_$(subst /,_,$(MODEL)).json \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
 
 # --- Testing ---
 

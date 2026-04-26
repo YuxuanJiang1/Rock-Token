@@ -199,3 +199,99 @@ The count-ranked list is the primary input for Part 2, as these tokens have enou
 *Full data: `rock_tokens_by_rate.csv`, `rock_tokens_by_count.csv`*
 *Plots: `scatter_loss.png`, `entropy_correlation.png`*
 *Pipeline config: `config.yaml` at project root*
+
+---
+
+# Part 2: Causal Analysis via Masking Experiments
+
+## 11. Evaluation Benchmarks
+
+Part 2 uses a benchmark suite focused on math competition reasoning (the student's training domain) plus instruction following as a non-math control:
+
+| Benchmark | Source | Size | Answer format | Role |
+|-----------|--------|------|---------------|------|
+| MATH-500 | `HuggingFaceH4/MATH-500` | 500 | LaTeX (`\boxed{}`) | Workhorse — high statistical power |
+| AIME 2024 | `HuggingFaceH4/aime_2024` | 30 | Integer (0–999) | Prestige — hard competition math |
+| AIME 2025 | `MathArena/aime_2025` | 30 | Integer | Prestige — hard competition math |
+| HMMT Feb 2025 | `MathArena/hmmt_feb_2025` | 30 | LaTeX expression | Prestige — hardest math |
+| IF-Eval | `google/IFEval` | 541 | Constraint checkers | Non-math control |
+
+Answer comparison uses a layered approach: normalized string match → numeric comparison → SymPy symbolic comparison (LaTeX parsed via `lark` backend). This handles equivalent forms like `\frac{1}{2}` vs `0.5` and rationalized radicals.
+
+---
+
+## 12. Step 0 — Baseline (Unmasked Student)
+
+**Model:** `RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k` (post-OPD, 4B)
+**Decoding:** Greedy (temperature=0), deterministic, seed=42
+
+### Overall Results
+
+| Benchmark | Correct | Total | Accuracy |
+|-----------|---------|-------|----------|
+| MATH-500 | 370 | 500 | **74.0%** |
+| AIME 2024 | 7 | 30 | 23.3% |
+| AIME 2025 | 6 | 30 | 20.0% |
+| HMMT Feb 2025 | 2 | 30 | 6.7% |
+| IF-Eval (strict prompt) | 401 | 541 | 74.1% |
+
+### MATH-500 Breakdown
+
+**Per Subject:**
+
+| Subject | Correct/Total | Accuracy |
+|---------|---------------|----------|
+| Algebra | 112/124 | 90.3% |
+| Number Theory | 52/62 | 83.9% |
+| Counting & Probability | 29/38 | 76.3% |
+| Prealgebra | 63/82 | 76.8% |
+| Intermediate Algebra | 61/97 | 62.9% |
+| Precalculus | 32/56 | 57.1% |
+| Geometry | 21/41 | 51.2% |
+
+**Per Difficulty Level:**
+
+| Level | Correct/Total | Accuracy |
+|-------|---------------|----------|
+| 1 | 39/43 | 90.7% |
+| 2 | 78/90 | 86.7% |
+| 3 | 86/105 | 81.9% |
+| 4 | 88/128 | 68.8% |
+| 5 | 79/134 | 59.0% |
+
+### IF-Eval Detail
+
+| Metric | Value |
+|--------|-------|
+| Strict prompt accuracy | 74.1% |
+| Strict instruction accuracy | 82.0% |
+| Loose prompt accuracy | 73.4% |
+| Loose instruction accuracy | 81.3% |
+
+### Key Observations
+
+1. **MATH-500 is the workhorse benchmark.** With 500 problems and 74% accuracy, there is ample headroom to detect both improvements (masking Stumbling Blocks) and degradation (masking Pillars). A single token mask that flips 5 problems produces a 1% detectable shift.
+
+2. **AIME provides marginal signal.** At 7/30 and 6/30 correct, individual token knockouts can detect large effects (≥1 problem = 3.3%) but not subtle ones. Useful for headline claims, not per-token ranking.
+
+3. **HMMT is too hard for per-token analysis.** Only 2/30 correct — a single problem flip is indistinguishable from noise. Reported for completeness; tokens should NOT be ranked by HMMT delta.
+
+4. **IF-Eval is stable at 74%.** The strict/loose gap is small (0.7pp), suggesting the model generally satisfies constraints cleanly when it satisfies them at all.
+
+5. **Clear difficulty gradients in MATH-500.** Algebra (90%) → Geometry (51%) and L1 (91%) → L5 (59%). These gradients may interact with Rock Token masking — e.g., masking reasoning connectives ("therefore", "however") might disproportionately affect harder problems where multi-step reasoning matters most.
+
+### Statistical Power Assessment
+
+For Step 2.1 (individual knockout with 200 tokens):
+
+| Benchmark | Detectable effect (1 problem flip) | Usable for per-token ranking? |
+|-----------|-----------------------------------|-------------------------------|
+| MATH-500 | 0.2% per problem | Yes — primary ranking signal |
+| AIME 24/25 | 3.3% per problem | Marginal — confirmatory only |
+| HMMT | 3.3% per problem | No — too few correct |
+| IF-Eval | 0.2% per prompt | Yes — non-math control |
+
+---
+
+*Baseline data: `results/masking/baseline/student_onpolicy/`*
+*Additional baselines (teacher, student_base, student_offpolicy) running in parallel.*
