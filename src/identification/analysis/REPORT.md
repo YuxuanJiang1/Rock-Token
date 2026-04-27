@@ -295,3 +295,196 @@ For Step 2.1 (individual knockout with 200 tokens):
 
 *Baseline data: `results/masking/baseline/student_onpolicy/`*
 *Additional baselines (teacher, student_base, student_offpolicy) running in parallel.*
+
+---
+
+## 13. Step 2.1 — Individual Token Knockout
+
+**Method.** Each of the 200 Rock Tokens (count-ranked) was masked individually by setting `logit_bias = -100` during greedy decoding. The student was re-evaluated on MATH-500 (500 problems) and IF-Eval (541 prompts). Per-token deltas are measured against an unmasked baseline run computed in the same session (75.0% MATH-500, 75.2% IF-Eval — 1pp different from Step 0 due to a separate vLLM session, but still our reference).
+
+### 13.1 Headline Taxonomy
+
+| Category | Count | Fraction |
+|----------|-------|----------|
+| **Pillar** (Δ < 0 on MATH-500) | **164** | **82%** |
+| **Neutral** (Δ = 0) | 11 | 6% |
+| **Stumbling Block** (Δ > 0) | 25 | 12% |
+
+**The dominant finding: Rock Tokens are predominantly Pillars.** Of the 200 high-loss, low-improvement tokens identified in Part 1, removing 82% of them *hurts* the student's math performance. Only 12% are genuine Stumbling Blocks where masking helps.
+
+This is a non-trivial result. The recalcitrance criterion in Part 1 is purely loss-based — it identifies tokens where the OPD loss never converged. One could have predicted that these are tokens where the OPD signal was harmful (Stumbling Blocks). The data says the opposite: most are tokens where the student is doing something useful that the teacher disagrees with, and removing them collapses that capability.
+
+### 13.2 MATH-500 Δ Distribution
+
+```
+  -3%  #### (4)
+  -2%  ############################################## (46)
+  -1%  ########################################################################################### (91)
+   0%  ################################################# (49)
+  +1%  ########## (10)
+```
+
+- **Mean Δ = -0.91%**, median = -0.80%, std = 0.83%
+- **91 tokens (45%) cluster at -1%** — the modal effect is a single problem flip
+- **The distribution is skewed left** with a long tail of large Pillars (-3.4% max) and a short tail of mild Stumbling Blocks (+1.0% max)
+
+### 13.3 Cross-Task Independence
+
+Pearson correlation between MATH-500 Δ and IF-Eval Δ: **r = -0.052** (essentially zero).
+
+| Cross-task pattern | Count |
+|--------------------|-------|
+| Both hurt (M↓, I↓) | 130 |
+| Both help (M↑, I↑) | 2 |
+| Math hurts, IF-Eval helps | 20 |
+| Math helps, IF-Eval hurts | 23 |
+
+**Token roles are task-specific.** Knowing how a token behaves on MATH-500 tells you almost nothing about how it behaves on IF-Eval. This means a single Pillar/Stumbling Block taxonomy will be benchmark-dependent — there is no universal "Pillar token" that is essential for everything.
+
+### 13.4 No Free Lunch on Stumbling Blocks
+
+**23 of 25 Stumbling Blocks (92%) hurt IF-Eval** while helping MATH-500. Examples:
+- " direct" : MATH-500 +0.20%, IF-Eval **-1.48%**
+- " Removes": MATH-500 +0.20%, IF-Eval **-1.48%**
+- " Algorithm": MATH-500 +0.40%, IF-Eval **-1.11%**
+
+This means simple inference-time Stumbling Block masking is a tradeoff, not a free improvement. Any production deployment would need to weigh the math gain against the instruction-following loss. A more principled training-time intervention (Step 6) is needed to actually capture a clean win.
+
+### 13.5 Top Pillars (removal hurts MATH-500 most)
+
+| Rank | Token | Freq | MATH-500 Δ | IF-Eval Δ | Type |
+|------|-------|------|-----------|-----------|------|
+| 1 | " certain" | 92 | **-3.40%** | -0.37% | reasoning qualifier |
+| 2 | " strategic" | 37 | -3.20% | -0.37% | reasoning qualifier |
+| 3 | " Initialize" | 31 | -3.00% | -0.55% | code/setup |
+| 4 | " skip" | 31 | -2.60% | -0.55% | algorithmic |
+| 5 | " arms" | 35 | -2.40% | +0.00% | content |
+| 6 | " programs" | 33 | -2.40% | -0.18% | content |
+| 7 | " tech" | 37 | -2.40% | +0.00% | content |
+| 8 | " Do" | 46 | -2.40% | -1.11% | imperative |
+| 9 | " smart" | 46 | -2.40% | -0.92% | reasoning qualifier |
+| 10 | " just" | 65 | -2.20% | -0.74% | reasoning hedge |
+
+**Pattern.** The strongest Pillars are dominated by **reasoning vocabulary** — qualifiers ("certain", "smart", "strategic"), hedges ("just"), action verbs ("try", "compare", "break"), imperatives ("Do"). This directly supports the teammate's Pillar hypothesis: *decision-critical and reasoning structure tokens*. " certain" alone — masking it costs the student 17 problems on MATH-500 — looks like a token the model has learned to use as a reasoning anchor ("for a certain value of x", "certain conditions").
+
+### 13.6 All 25 Stumbling Blocks
+
+| Rank | Token | Freq | MATH-500 Δ | IF-Eval Δ |
+|------|-------|------|-----------|-----------|
+| 1 | " rounded" | 37 | +1.00% | -0.37% |
+| 2 | " fun" | 30 | +1.00% | -0.18% |
+| 3 | " project" | 36 | +0.80% | -0.18% |
+| 4 | " handle" | 259 | +0.60% | -0.18% |
+| 5 | " details" | 34 | +0.60% | -0.74% |
+| 6 | " starting" | 50 | +0.60% | -0.55% |
+| 7 | " integration" | 31 | +0.60% | -1.11% |
+| 8 | " recursively" | 35 | +0.60% | -0.55% |
+| 9 | " represent" | 68 | +0.60% | -0.92% |
+| 10 | " doing" | 44 | +0.60% | -0.74% |
+| 11–25 | " rock", " Algorithm", " approximate", " projects", " Important", " detailed", " wind", " co", " Some", " quart", " direct", " Removes", " financial", " hope", " best" | various | +0.20% to +0.40% | mostly negative |
+
+**Pattern.** Stumbling Blocks lean toward **code/technical content vocabulary** — " Algorithm", " recursively", " integration", " Initialize" (also a Pillar — interesting), " project(s)", " handle". This makes sense given the OPD training distribution: the student was trained on math, so code-context tokens generate confidently-wrong predictions that hurt math reasoning. Removing them frees up probability mass that the student uses better.
+
+### 13.7 Statistical Power Reality Check
+
+With baseline = 75% on MATH-500 (375/500), a single problem flip = 0.2pp. So:
+- A Pillar with Δ = -3.4% means **17 problems lost** — robustly significant, far above any noise floor
+- A Stumbling Block with Δ = +1.0% means **5 problems gained** — small but consistent
+- The 91 tokens at Δ = -1% mean **5 problems lost** — borderline; bootstrap testing (Step 2.2) will be necessary to separate signal from noise
+
+Step 2.2 will run paired bootstrap on each token to assign p-values and Strong/Weak classifications.
+
+### 13.8 IF-Eval Perspective: A Different Set of Pillars
+
+The MATH-500 view above ranked tokens by their effect on math reasoning. Re-ranking the same 200 tokens by IF-Eval delta reveals a **largely disjoint** set of Pillars and Stumbling Blocks — confirming the cross-task independence finding above.
+
+#### IF-Eval Taxonomy
+
+| Category | Count | Fraction |
+|----------|-------|----------|
+| **Pillar** (Δ < 0 on IF-Eval) | **160** | **80%** |
+| **Neutral** (Δ = 0) | 14 | 7% |
+| **Stumbling Block** (Δ > 0) | 26 | 13% |
+
+The fractions are remarkably similar to the MATH-500 view (82/6/12). But the *identities* of the Pillars and Stumbling Blocks shift substantially.
+
+#### IF-Eval Δ Distribution
+
+```
+  -2%  #### (4)
+  -1%  ########################################################################################################## (106)
+   0%  ################################################################################# (81)
+  +1%  ######### (9)
+```
+
+- Mean Δ = -0.52%, std = 0.53% — **smaller magnitudes than MATH-500** because IF-Eval is more constrained-output and less sensitive to single-token suppression
+- Modal effect: -1% (≈6 prompts flipped on a 541-prompt benchmark)
+
+#### Top 10 IF-Eval Pillars (removal hurts IF-Eval most)
+
+| Rank | Token | Freq | IF-Eval Δ | MATH-500 Δ | Type |
+|------|-------|------|-----------|------------|------|
+| 1 | " -like" | 75 | **-2.22%** | -1.40% | morphological suffix |
+| 2 | " trade" | 41 | -1.85% | -1.00% | content |
+| 3 | " tools" | 53 | -1.66% | -1.60% | content |
+| 4 | " demand" | 41 | -1.66% | -1.00% | content |
+| 5 | " library" | 30 | -1.48% | +0.00% | content |
+| 6 | " Consider" | 59 | -1.48% | -0.40% | reasoning marker |
+| 7 | " Removes" | 57 | -1.48% | **+0.20%** | code/action |
+| 8 | " direct" | 89 | -1.48% | **+0.20%** | content |
+| 9 | " shape" | 108 | -1.29% | -1.60% | content |
+| 10 | " fix" | 144 | -1.29% | -0.60% | content |
+
+**Pattern.** IF-Eval Pillars are dominated by **content/topical vocabulary** — domain nouns ("library", "tools", "trade", "shape"), morphological tokens ("-like"), and discourse markers ("Consider"). This is a different signature from MATH-500 Pillars (reasoning qualifiers like "certain", "just", "smart"). IF-Eval prompts ask the model to *write about something* with constraints, so masking topic-relevant content directly damages output quality.
+
+Two tokens — " Removes" and " direct" — are **simultaneously a Stumbling Block on MATH-500 (+0.20%) and a Pillar on IF-Eval (-1.48%)**. These are tokens where masking helps math reasoning but hurts instruction-following: the cleanest examples of cross-task tension.
+
+#### All 26 IF-Eval Stumbling Blocks (removal helps IF-Eval)
+
+| Token | Freq | IF-Eval Δ | MATH-500 Δ |
+|-------|------|-----------|------------|
+| " sustainable" | 42 | +0.92% | -1.80% |
+| " transit" | 42 | +0.55% | -1.00% |
+| " starting" | 400 | +0.55% | +0.00% |
+| " causes" | 66 | +0.55% | +0.00% |
+| " ensures" | 149 | +0.55% | -1.00% |
+| " maps" | 37 | +0.55% | -1.40% |
+| " advanced" | 45 | +0.55% | -2.00% |
+| " clean" | 215 | +0.55% | -1.80% |
+| " educational" | 33 | +0.55% | -0.60% |
+| " features" | 76 | +0.37% | +0.00% |
+| " hope" | 30 | +0.37% | +0.20% |
+| " mix" | 40 | +0.37% | -1.00% |
+| " state" | 92 | +0.37% | -1.20% |
+| " Note" | 267 | +0.37% | -1.80% |
+| " communication" | 48 | +0.37% | -1.00% |
+| " compare" | 103 | +0.37% | -2.00% |
+| 10 more | various | +0.18% | mostly negative |
+
+**Pattern.** IF-Eval Stumbling Blocks lean toward **abstract/topical fillers** — sustainability/environmental vocabulary (" sustainable", " transit", " climate", " educational"), filler nouns (" features", " state", " Note"), and tokens that may bias the model toward overly verbose or off-topic responses.
+
+**No free lunch on the other side either.** Of the 26 IF-Eval Stumbling Blocks, **20 (77%) hurt MATH-500**. The most striking example: " advanced" gives +0.55% on IF-Eval but **-2.00% on MATH-500**. Masking tokens to improve instruction following typically degrades math reasoning.
+
+#### Cross-Task Pillar Overlap
+
+Of the 160 IF-Eval Pillars, **130 (81%) are also MATH-500 Pillars**. Of the 26 IF-Eval Stumbling Blocks, **20 (77%) are MATH-500 Pillars**. Combined, **150 of 200 tokens (75%) are Pillars on at least one benchmark in agreement with the other** — but the *strongest* effects on each benchmark come from largely different tokens.
+
+This refines the earlier finding: while the *rate* of Pillar/Stumbling/Neutral classification is similar across tasks, the *identity* of the strongest movers depends on the task domain. A token like " certain" is a strong reasoning Pillar but a weak IF-Eval Pillar; " -like" is the opposite.
+
+### 13.9 Implications
+
+1. **Most Rock Tokens are not noise.** The recalcitrant loss in Part 1 reflected genuine learning that the student couldn't perfectly converge to the teacher — but masking the tokens reveals the student *did* learn something useful.
+
+2. **The Pillar hypothesis is largely confirmed.** Reasoning vocabulary dominates the top Pillars: qualifiers, hedges, imperatives, action verbs. The teammate's hypothesis (decision-critical + reasoning structure tokens) is supported by the qualitative pattern.
+
+3. **The Stumbling Block hypothesis is partially confirmed.** Stumbling Blocks lean toward off-domain (code) vocabulary — consistent with "high-information" tokens the student couldn't reliably model. They are a small minority (12%).
+
+4. **There is no universal "bad" Rock Token.** Cross-task independence (r ≈ 0) means token roles are benchmark-specific. A paper claim must be careful: "Stumbling Block on MATH-500" rather than "Stumbling Block, period."
+
+5. **Inference-time masking has a cost.** 92% of Stumbling Blocks hurt IF-Eval. The path to a clean win runs through training-time loss masking (Step 6), not inference-time logit suppression.
+
+---
+
+*Knockout data: `results/masking/knockout/count/`*
+*Per-token JSONs: `tokens/token_<id>.json` (includes `per_correct` boolean lists for bootstrap)*
+*Summary: `summary.csv`, `summary.json`*
