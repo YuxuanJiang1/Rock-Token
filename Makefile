@@ -17,7 +17,7 @@ MODEL   ?= $(STUDENT)
        masking-baseline masking-baseline-smoke \
        masking-eval-math500 masking-eval-aime24 masking-eval-aime25 \
        masking-eval-hmmt masking-eval-ifeval \
-       masking-knockout masking-knockout-smoke \
+       masking-knockout masking-knockout-smoke masking-categorize \
        test help
 
 exp2:  ## Run full pipeline (bayesian scoring, default)
@@ -170,6 +170,11 @@ masking-knockout-smoke:  ## Quick knockout smoke test (5 samples, 3 tokens)
 		--category $(CATEGORY) \
 		--output-dir results/masking/knockout_smoke \
 		--n-samples 5 --n-tokens 3
+
+masking-categorize:  ## Step 2.2: bootstrap-based statistical categorization (CPU only)
+	uv run python src/masking/categorize.py \
+		--knockout-dir results/masking/knockout/$(CATEGORY) \
+		--rock-tokens $(IDENTIFICATION_DIR)/rock_tokens_by_$(CATEGORY).csv
 
 # --- Testing ---
 
