@@ -345,6 +345,41 @@ def load_ifeval(n_samples: int | None = None):
     return ds
 
 
+def build_conversations(dataset) -> list[list[dict]]:
+    """Build chat conversations from dataset (for use with llm.chat)."""
+    return [
+        [{"role": "user", "content": sample["prompt"]}]
+        for sample in dataset
+    ]
+
+
+def score_outputs(outputs, dataset) -> dict:
+    """Score pre-generated vLLM outputs against IF-Eval dataset.
+
+    Returns dict with accuracy (strict prompt), correct, total, and
+    per_correct (boolean list for bootstrap resampling).
+    """
+    strict_correct = 0
+    per_correct = []
+
+    for idx, output in enumerate(outputs):
+        sample = dataset[idx]
+        generated = output.outputs[0].text
+        instruction_ids = sample["instruction_id_list"]
+        kwargs_list = sample["kwargs"]
+        result = score_sample(generated, instruction_ids, kwargs_list, strict=True)
+        strict_correct += int(result["prompt_pass"])
+        per_correct.append(result["prompt_pass"])
+
+    total = len(dataset)
+    return {
+        "accuracy": strict_correct / total if total > 0 else 0,
+        "correct": strict_correct,
+        "total": total,
+        "per_correct": per_correct,
+    }
+
+
 def score_sample(
     response: str,
     instruction_ids: list[str],

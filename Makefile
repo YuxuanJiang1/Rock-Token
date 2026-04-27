@@ -17,6 +17,7 @@ MODEL   ?= $(STUDENT)
        masking-baseline masking-baseline-smoke \
        masking-eval-math500 masking-eval-aime24 masking-eval-aime25 \
        masking-eval-hmmt masking-eval-ifeval \
+       masking-knockout masking-knockout-smoke \
        test help
 
 exp2:  ## Run full pipeline (bayesian scoring, default)
@@ -150,6 +151,25 @@ masking-eval-ifeval:  ## Eval single model on IF-Eval (MODEL=...)
 	uv run python src/masking/eval_ifeval.py \
 		--model $(MODEL) --output results/masking/ifeval_$(subst /,_,$(MODEL)).json \
 		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+
+# -- 2.1 Knockout ---
+
+IDENTIFICATION_DIR ?= results/identification/onpolicy
+CATEGORY ?= count
+
+masking-knockout:  ## Run individual knockout (CATEGORY=count|rate, IDENTIFICATION_DIR=...)
+	uv run python src/masking/knockout.py \
+		--rock-tokens $(IDENTIFICATION_DIR)/rock_tokens_by_$(CATEGORY).csv \
+		--category $(CATEGORY) \
+		$(if $(N_SAMPLES),--n-samples $(N_SAMPLES))
+
+masking-knockout-smoke:  ## Quick knockout smoke test (5 samples, 3 tokens)
+	uv run python src/masking/knockout.py \
+		--rock-tokens $(IDENTIFICATION_DIR)/rock_tokens_by_$(CATEGORY).csv \
+		--category $(CATEGORY) \
+		--output-dir results/masking/knockout_smoke \
+		--n-samples 5 --n-tokens 3
 
 # --- Testing ---
 

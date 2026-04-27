@@ -37,6 +37,45 @@ def load_math500(n_samples: int | None = None):
     return ds
 
 
+def build_conversations(dataset) -> list[list[dict]]:
+    """Build chat conversations from dataset (for use with llm.chat)."""
+    return [
+        [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": sample["problem"]},
+        ]
+        for sample in dataset
+    ]
+
+
+def score_outputs(outputs, dataset) -> dict:
+    """Score pre-generated vLLM outputs against MATH-500 dataset.
+
+    Returns dict with accuracy, correct, total, and per_correct (boolean list
+    for bootstrap resampling in later steps).
+    """
+    correct = 0
+    per_correct = []
+
+    for idx, output in enumerate(outputs):
+        sample = dataset[idx]
+        generated = output.outputs[0].text
+        predicted = extract_boxed_answer(generated)
+        gold = sample["answer"]
+        is_correct = predicted is not None and answers_equal(predicted, gold)
+        if is_correct:
+            correct += 1
+        per_correct.append(is_correct)
+
+    total = len(dataset)
+    return {
+        "accuracy": correct / total if total > 0 else 0,
+        "correct": correct,
+        "total": total,
+        "per_correct": per_correct,
+    }
+
+
 def evaluate(
     model_name: str,
     n_samples: int | None = None,
