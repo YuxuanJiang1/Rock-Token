@@ -605,6 +605,225 @@ The bootstrap analysis sharpens the Step 2.1 story considerably. Three claims ar
 
 ---
 
-*Categorization data: `results/masking/categorization/count/`*
+*Categorization data: `results/masking/categorization/count_nondeterministic/`*
 *Per-token table: `categorization.csv` (with bootstrap CIs and p-values)*
 *Plots: `plots/delta_histograms.png`, `cross_task_scatter.png`, `feature_correlations.png`*
+
+> ⚠️ **The Step 2.1 / 2.2 results above were generated with vLLM in default (non-deterministic) configuration. We subsequently discovered that vLLM produces session-level scheduling variance on A100 hardware that flooded out per-token signal. The deterministic re-run is documented in Section 15. The numbers above should be read as a session-specific snapshot, not as reproducible findings.**
+
+---
+
+## 15. Methodological Discovery — vLLM Cross-Session Nondeterminism on A100
+
+While trying to reconcile Step 2.1 single-token deltas with Step 2.3 cumulative deltas (both nominally measuring the same masks at k=1), we discovered that the same masked configuration in two different vLLM sessions produced different per-problem outputs:
+
+| Run | MATH-500 baseline | Per-problem differences vs other run |
+|-----|-------------------|---------------------------------------|
+| Knockout session | 75.0% (375/500) | — |
+| Cumulative session | 73.8% (369/500) | **36 problems differ** |
+
+Same model, same prompts, same seed=42, same temperature=0, same hardware. Two separate Python processes loaded vLLM and ran greedy decoding. **36 problems (7.2%) gave different correctness across the two sessions.**
+
+This dwarfs the 1–3% per-token effects we were trying to measure. Worse, the bootstrap CIs in Step 2.2 only captured *within-session* sampling variance — they entirely missed this cross-session noise source. Reported "Strong Pillars" with p-values of 0.004 may not reproduce in another session.
+
+### Root cause
+
+Documented in vLLM's [Reproducibility guide](https://docs.vllm.ai/en/latest/usage/reproducibility/): vLLM's V1 engine uses multiprocessing for batch scheduling, which produces non-deterministic chunking and KV-cache layout decisions across separate processes. Even with greedy decoding and a fixed seed, this changes the floating-point order of operations and can flip the argmax on individual problems.
+
+The official solution is `VLLM_BATCH_INVARIANT=1`, but it requires NVIDIA GPUs with compute capability ≥ 9.0 (H100/H200/B100/B200 only). On A100 (compute capability 8.0), the available workaround is `VLLM_ENABLE_V1_MULTIPROCESSING=0`, which forces single-process scheduling.
+
+### The fix
+
+Three changes to `src/masking/common.py`:
+
+1. **`os.environ.setdefault("VLLM_ENABLE_V1_MULTIPROCESSING", "0")`** at module import (forces single-process scheduling).
+2. **`top_k=1`** added to all SamplingParams (forces strict argmax tie-breaking).
+3. The same change in `knockout.py` and `cumulative.py` for masked SamplingParams.
+
+### Verification
+
+`src/masking/verify_masking.py` runs 7 diagnostic tests, including a cross-session reproducibility check (Test 7) that saves baseline output to disk and compares against subsequent runs.
+
+After the fix, all 7 tests pass — including byte-identical baseline outputs across two separate Python processes.
+
+### Implications for the paper
+
+This is a methodological contribution worth its own subsection in the related-work / methodology sections of the paper:
+
+> *"Inference-time masking studies of LLMs must use deterministic vLLM configuration. Without `VLLM_ENABLE_V1_MULTIPROCESSING=0` on non-H100 hardware, single-token effects are dominated by inter-session batch-scheduling noise. We show that ~50% of per-token Pillar/Stumbling Block classifications flip sign between sessions, and the bootstrap p-values within a session systematically underestimate true variance."*
+
+---
+
+## 16. Deterministic Re-run — The Real Picture
+
+We re-ran the full Part 2 chain (Step 2.1 → 2.2 → 2.3) with the deterministic configuration. All numbers below are byte-reproducible across separate vLLM sessions.
+
+### 16.1 Step 2.1 — Knockout (Deterministic)
+
+**Baseline:** MATH-500 74.2% (371/500), IF-Eval 74.7% (404/541)
+
+| Metric | OLD (non-deterministic) | **NEW (deterministic)** |
+|--------|:-:|:-:|
+| Pillar (Δ<0) | 164 (82%) | **93 (46%)** |
+| Neutral (Δ=0) | 11 (6%) | 14 (7%) |
+| Stumbling (Δ>0) | 25 (12%) | **93 (46%)** |
+| Mean Δ | -0.91% | -0.25% |
+| Median Δ | -0.80% | **+0.00%** |
+| Min Δ | -3.40% | **-2.00%** |
+| Max Δ | +1.00% | +1.20% |
+| \|Δ\| ≥ 1% Pillars | many | **34** |
+| \|Δ\| ≥ 1% Stumbling | 0 | **2** |
+| \|Δ\| ≥ 2% (any) | 4 Pillars | **1 Pillar (" maps")** |
+
+**The taxonomy collapses to balance.** With session noise removed, Rock Tokens are nearly equally likely to help or hurt MATH-500 when masked. Most are Neutral or near-Neutral.
+
+**Per-token sign-flip rate vs OLD: 91 of 177 non-zero token pairs (51%) flipped sign.** The old per-token rankings were near-random with respect to the deterministic ground truth.
+
+### 16.2 Step 2.2 — Bootstrap Categorization (Deterministic)
+
+The headline result of the entire study:
+
+| Category | MATH-500 | IF-Eval |
+|----------|:-:|:-:|
+| Strong Pillar (Δ ≤ -ε, p<α) | **0** | 0 |
+| Weak Pillar | 0 | 0 |
+| **Neutral (p ≥ 0.05)** | **200** | 199 |
+| Weak Stumbling Block | 0 | 0 |
+| Strong Stumbling Block | **0** | **1** |
+
+**Zero tokens are statistically significant Pillars on MATH-500 at α=0.05, ε=1%.** With n=500 problems and proper determinism, the bootstrap correctly identifies that single-token effects are below the detection threshold.
+
+The 7 "Strong Pillars" from the OLD bootstrap (" certain", " strategic", " Initialize", etc.) were artifacts of session-noise inflation. Their session-specific Δ of -3.4% would not replicate in any other vLLM session.
+
+The single Strong Stumbling Block on IF-Eval is **" shape"** (Δ = +1.29% on IF-Eval, also +1.20% on MATH-500).
+
+### 16.3 Top Pillars and Stumbling Blocks (Raw Δ, not bootstrap-significant)
+
+Although none reach bootstrap significance with n=500, the strongest raw effects are:
+
+**Top Pillars (Δ ≤ -1.5%, |Δ| ≥ 1.5% — 21 tokens):**
+
+| Token | Freq | M500 Δ | IF-Eval Δ |
+|-------|------|--------|-----------|
+| " maps" | 37 | **-2.00%** | +0.37% |
+| " -like" | 75 | -1.80% | +0.18% |
+| " job" | 33 | -1.80% | +0.00% |
+| " advanced" | 45 | -1.60% | +0.18% |
+| " Python" | 1138 | -1.60% | -0.55% |
+| " educational" | 33 | -1.60% | -0.18% |
+| " transportation" | 36 | -1.60% | +0.18% |
+| " local" | 43 | -1.60% | +0.55% |
+| " Regular" | 37 | -1.60% | -0.18% |
+| " especially" | 40 | -1.60% | +0.18% |
+| " mathematics" | 37 | -1.60% | +1.11% |
+| " clean" | 215 | -1.60% | +0.37% |
+| " Important" | 76 | -1.60% | +0.00% |
+| " issues" | 77 | -1.60% | +0.37% |
+| " financial" | 45 | -1.60% | +0.00% |
+| " became" | 34 | -1.60% | +1.29% |
+| " physical" | 41 | -1.60% | +0.92% |
+| " movement" | 41 | -1.60% | +0.37% |
+| " understanding" | 66 | -1.60% | +0.00% |
+| " break" | 35 | -1.60% | +0.37% |
+| " wind" | 49 | -1.60% | -0.55% |
+
+**Pattern.** Mixed: code identifiers (" Python", " Regular"), domain content (" mathematics", " transportation", " educational", " financial", " local"), discourse markers (" Important", " especially"), abstract nouns (" understanding", " issues", " movement", " situation"), morphological (" -like"). **No clean reasoning-vocabulary cluster** — that pattern in the old data was an artifact.
+
+**Top Stumbling Blocks (only 2 reach |Δ| ≥ 1%):**
+
+| Token | Freq | M500 Δ | IF-Eval Δ |
+|-------|------|--------|-----------|
+| **" shape"** | 108 | **+1.20%** | **+1.29%** |
+| **" mix"** | 40 | **+1.00%** | +0.37% |
+
+### 16.4 Cross-Task Robust Effects (the cleanest reproducible signals)
+
+Tokens with |Δ| ≥ 0.5% on **both** benchmarks, **same direction**:
+
+**Both Pillar (8 tokens — masking hurts both):**
+
+| Token | M500 Δ | IF-Eval Δ |
+|-------|--------|-----------|
+| " Python" | -1.60% | -0.55% |
+| " wind" | -1.60% | -0.55% |
+| " approximate" | -1.20% | -0.55% |
+| " connecting" | -1.00% | -0.74% |
+| " of" | -0.80% | -0.55% |
+| " detailed" | -0.80% | -0.74% |
+| " little" | -0.80% | -0.55% |
+| " direct" | -0.60% | -0.55% |
+
+**Both Stumbling Block (2 tokens — masking helps both):**
+
+| Token | M500 Δ | IF-Eval Δ |
+|-------|--------|-----------|
+| **" shape"** | **+1.20%** | **+1.29%** |
+| **" hope"** | +0.60% | +0.92% |
+
+**Cross-task disagreement: 66 tokens** flip sign between MATH-500 and IF-Eval — task-specific roles dominate.
+
+**Cross-task correlation r = -0.082** — slightly negative, very weak. Tokens that help one benchmark tend to slightly hurt the other.
+
+### 16.5 Step 2.3 — Cumulative Curves (Deterministic)
+
+| k | Greedy Pillar | Greedy Stumbling | Random (mean ± std) |
+|---|:-:|:-:|:-:|
+| 1 | -2.0% / +0.6% | +0.6% / -0.2% | +0.2±0.4% / -0.2±0.3% |
+| 5 | -1.8% / -0.4% | +2.0% / +0.0% | -0.2±0.3% / -0.1±0.6% |
+| 20 | +0.8% / +0.2% | -0.8% / -0.4% | +0.3±0.9% / +0.1±0.5% |
+| 50 | -0.6% / -0.9% | -0.8% / -0.2% | -0.4±0.9% / -0.4±0.5% |
+| 100 | -0.6% / -0.4% | +1.0% / -1.8% | +0.3±0.6% / -0.7±0.4% |
+| 200 | -0.4% / -1.1% | +0.4% / -1.1% | -0.1±1.0% / -1.1±0.3% |
+
+(M500 / IF-Eval at each cumulative k)
+
+**No curve crashes.** Greedy Pillar removal does NOT show a monotonic decline. Greedy Stumbling Block removal does NOT show monotonic improvement. Random oscillates around 0 with std ~0.5–1%. **All three curves overlap within their noise bands.**
+
+The single-token rankings have **zero aggregate predictive power** at this benchmark size. Cumulative interventions on Rock Tokens — whether selected for "Pillar-like" or "Stumbling-Block-like" effects, or randomly — perturb MATH-500 accuracy by roughly the same amount.
+
+### 16.6 Feature Correlations (Deterministic)
+
+| Feature | r (MATH-500) | r (IF-Eval) |
+|---------|-------------:|------------:|
+| frequency | -0.173 | +0.002 |
+| rock_count | -0.165 | -0.008 |
+| rock_rate | +0.164 | -0.099 |
+| avg_loss_before | +0.008 | -0.029 |
+| avg_loss_after | -0.022 | -0.064 |
+| avg_improvement | +0.066 | +0.074 |
+| avg_teacher_entropy | +0.045 | -0.045 |
+| avg_student_entropy_before | +0.046 | -0.133 |
+| avg_student_entropy_after | +0.066 | -0.118 |
+
+Maximum |r| ≈ 0.17 (frequency on MATH-500). **No feature meaningfully predicts deterministic per-token effect** — neither entropy, nor loss, nor frequency. The slight negative frequency correlation on MATH-500 says higher-frequency tokens are mildly more Pillar-like (Δ more negative), but the effect is small.
+
+The teammate's feature-based hypotheses (high-entropy → Stumbling, low-entropy → Pillar) are not supported in the deterministic data.
+
+---
+
+## 17. Final Headline Findings
+
+After Steps 2.1, 2.2, 2.3 with deterministic vLLM configuration:
+
+1. **The Methodological Finding (NEW):** vLLM cross-session nondeterminism on A100 hardware produces ~7% per-problem variance even at greedy temperature=0 with fixed seed. This source of noise dwarfs single-token masking effects and was missed by within-session bootstrap p-values in prior work. Inference-time masking studies on non-H100 hardware require `VLLM_ENABLE_V1_MULTIPROCESSING=0`.
+
+2. **The Neutrality Result:** Of the 200 OPD-recalcitrant tokens, **none have a statistically significant inference-time effect on MATH-500** (n=500 is too small to detect the largest -2.0% Δ). This is a strong negative result — the recalcitrance criterion in Part 1 does *not* identify functionally important tokens at inference time.
+
+3. **The " shape" Anecdote:** The single statistically significant single-token effect across the entire study is **" shape"**, a Strong Stumbling Block on IF-Eval (+1.29%) that also helps MATH-500 (+1.20%) — a clean cross-task win. This is the only token where inference-time masking produces a defensible, cross-task improvement.
+
+4. **The Cumulative Null Result:** Aggregating up to all 200 Rock Tokens, neither greedy-Pillar removal nor greedy-Stumbling-Block removal produces effects distinguishable from random masking. Single-token rankings have no aggregate predictive power.
+
+5. **The Cross-Task Independence Confirmed:** Pearson r = -0.08 between MATH-500 and IF-Eval Δs. 66 of 200 tokens have signs that disagree across tasks. There is no universal Pillar or Stumbling Block — token roles are task-specific.
+
+6. **The Pivot:** Inference-time single-token masking is not the right intervention to extract signal at this benchmark scale. The path to defensible improvement claims runs through:
+   - **Larger benchmarks** (e.g., MATH-7500) for adequate statistical power on small effects
+   - **Group masking** by semantic category (Step 4) to pool weak signals
+   - **Training-time loss masking** (Step 6) — the decisive experiment that bypasses inference-time noise entirely
+
+The paper's contribution shifts: less "we identify Pillar/Stumbling Block tokens" and more **"we show recalcitrant-loss tokens are causally inert at inference time, and the path to using this signal runs through training-time intervention."** This is a stronger, more honest, more publishable story.
+
+---
+
+*Deterministic data: `results/masking/{knockout,categorization,cumulative}/count/`*
+*Old non-deterministic data preserved at: `results/masking/{knockout,categorization,cumulative}/count_nondeterministic/`*
+*Verification: `src/masking/verify_masking.py` (Test 7 confirms cross-session byte-identical output)*

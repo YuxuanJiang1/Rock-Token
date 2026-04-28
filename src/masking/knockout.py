@@ -184,6 +184,7 @@ def run_knockout(
                 temperature=0,
                 max_tokens=max_new_tokens,
                 seed=seed,
+                top_k=1,
                 logit_bias=make_logit_bias(token_id),
             )
 

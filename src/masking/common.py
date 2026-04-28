@@ -3,12 +3,24 @@
 Provides vLLM engine creation, answer extraction and comparison (including
 SymPy-based LaTeX matching), result I/O, and CLI helpers.  Self-contained —
 does not import from src/evaluation/ or src/analysis/.
+
+Determinism: forces VLLM_ENABLE_V1_MULTIPROCESSING=0 to make scheduling
+deterministic across vLLM sessions on A100-class hardware (compute capability
+< 9.0, where VLLM_BATCH_INVARIANT is unavailable). See:
+https://docs.vllm.ai/en/latest/usage/reproducibility/
 """
 
 import json
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+
+# IMPORTANT: must be set before any vLLM import. Forces single-process scheduling
+# in vLLM v1 engine, which makes batch ordering and scheduling deterministic
+# across separate vLLM sessions on hardware that does not support
+# VLLM_BATCH_INVARIANT (i.e., compute capability < 9.0 — A100 and earlier).
+os.environ.setdefault("VLLM_ENABLE_V1_MULTIPROCESSING", "0")
 
 from rich.console import Console
 from rich.table import Table
@@ -54,13 +66,14 @@ def default_sampling_params(
     temperature: float = 0,
     seed: int = SEED,
 ):
-    """Standard greedy sampling params."""
+    """Standard greedy sampling params with strict tie-breaking via top_k=1."""
     from vllm import SamplingParams
 
     return SamplingParams(
         temperature=temperature,
         max_tokens=max_tokens,
         seed=seed,
+        top_k=1,  # forces strict argmax even in numerical-tie edge cases
     )
 
 

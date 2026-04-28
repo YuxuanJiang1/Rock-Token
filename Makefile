@@ -18,6 +18,7 @@ MODEL   ?= $(STUDENT)
        masking-eval-math500 masking-eval-aime24 masking-eval-aime25 \
        masking-eval-hmmt masking-eval-ifeval \
        masking-knockout masking-knockout-smoke masking-categorize \
+       masking-cumulative masking-cumulative-smoke \
        test help
 
 exp2:  ## Run full pipeline (bayesian scoring, default)
@@ -175,6 +176,18 @@ masking-categorize:  ## Step 2.2: bootstrap-based statistical categorization (CP
 	uv run python src/masking/categorize.py \
 		--knockout-dir results/masking/knockout/$(CATEGORY) \
 		--rock-tokens $(IDENTIFICATION_DIR)/rock_tokens_by_$(CATEGORY).csv
+
+masking-cumulative:  ## Step 2.3: cumulative removal curves (CATEGORY=count|rate)
+	uv run python src/masking/cumulative.py \
+		--knockout-dir results/masking/knockout/$(CATEGORY) \
+		--categorization results/masking/categorization/$(CATEGORY)/categorization.csv
+
+masking-cumulative-smoke:  ## Quick smoke (3 k values, 1 random seed, 5 samples)
+	uv run python src/masking/cumulative.py \
+		--knockout-dir results/masking/knockout/$(CATEGORY) \
+		--categorization results/masking/categorization/$(CATEGORY)/categorization.csv \
+		--output-dir results/masking/cumulative_smoke \
+		--k-values 1 5 10 --random-seeds 1 --n-samples 5
 
 # --- Testing ---
 
