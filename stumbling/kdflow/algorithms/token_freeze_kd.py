@@ -20,6 +20,8 @@ class TokenFreezeKD:
 
         token_freeze_path = getattr(self.args.kd, "token_freeze_path", None)
         self.freeze_weight = float(getattr(self.args.kd, "freeze_weight", 0.0))
+        self.freeze_token_ids = None
+
 
         if token_freeze_path is not None:
             with open(token_freeze_path, "r") as f:
@@ -29,12 +31,7 @@ class TokenFreezeKD:
             self.freeze_token_ids = None
 
 
-    def __init__(self, strategy, student_model, teacher_lm_head, **kwargs):
-        self.strategy = strategy
-        self.args = strategy.args
-        self.student = student_model
-        self.teacher_lm_head = teacher_lm_head
-        self.loss_fn = build_loss_fn(self.args.kd.kd_loss_fn, self.args)
+
     
     def training_step(self, micro_batch):
         student_input_ids = micro_batch["stu_input_ids"]
