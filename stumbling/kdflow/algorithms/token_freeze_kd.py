@@ -18,8 +18,8 @@ class TokenFreezeKD:
         self.teacher_lm_head = teacher_lm_head
         self.loss_fn = build_loss_fn(self.args.kd.kd_loss_fn, self.args)
 
-        token_freeze_path = getattr(self.args, "token_freeze_path", None)
-        self.freeze_weight = float(getattr(self.args, "freeze_weight", 0.0))
+        token_freeze_path = getattr(self.args.kd, "token_freeze_path", None)
+        self.freeze_weight = float(getattr(self.args.kd, "freeze_weight", 0.0))
 
         if token_freeze_path is not None:
             with open(token_freeze_path, "r") as f:

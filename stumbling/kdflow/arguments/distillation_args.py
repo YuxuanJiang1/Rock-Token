@@ -9,6 +9,16 @@ logger = logging.getLogger(__name__)
 class DistillationArguments:
     """ Arguments for knowledge distillation."""
     
+    token_freeze_path: str = field(
+        default=None,
+        metadata={"help": "Path to JSON file"}
+    )
+
+    freeze_weight: float = field(
+        default=0.0,
+        metadata={"help": "0.0 = freeze, <1 = downweight"}
+    )
+    
     kd_ratio: float = field(
         default=0.5,
         metadata={"help": "Loss = (1 - kd_ratio) * nll_loss + kd_ratio * kd_loss."}
