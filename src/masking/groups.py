@@ -39,6 +39,7 @@ from src.masking.eval_math500 import (
 )
 from src.masking.eval_math500 import (
     load_math500,
+    load_math_full,
     score_outputs as score_math500,
 )
 
@@ -148,11 +149,12 @@ def build_groups(tokens: list[dict], seed: int = 42) -> list[dict]:
 
 def run_group(
     llm,
-    math500_convs, math500_ds,
+    math_convs, math_ds,
     ifeval_convs, ifeval_ds,
     token_ids: list[int],
     max_new_tokens: int,
     seed: int,
+    skip_ifeval: bool = False,
 ):
     from vllm import SamplingParams
 
@@ -167,10 +169,14 @@ def run_group(
     else:
         sp = default_sampling_params(max_tokens=max_new_tokens, seed=seed)
 
-    m_outputs = llm.chat(math500_convs, sp)
-    m_result = score_math500(m_outputs, math500_ds)
-    i_outputs = llm.chat(ifeval_convs, sp)
-    i_result = score_ifeval(i_outputs, ifeval_ds)
+    m_outputs = llm.chat(math_convs, sp)
+    m_result = score_math500(m_outputs, math_ds)
+
+    if skip_ifeval:
+        i_result = None
+    else:
+        i_outputs = llm.chat(ifeval_convs, sp)
+        i_result = score_ifeval(i_outputs, ifeval_ds)
     return m_result, i_result
 
 
@@ -179,6 +185,9 @@ def run_all_groups(
     knockout_dir: Path,
     categorization_csv: Path,
     output_dir: Path,
+    benchmark: str = "math500",
+    skip_ifeval: bool = False,
+    groups_filter: list[str] | None = None,
     n_samples: int | None = None,
     max_new_tokens: int = 4096,
     tensor_parallel_size: int | None = None,
@@ -193,18 +202,32 @@ def run_all_groups(
     tokens = load_token_table(categorization_csv)
     console.print(f"Loaded {len(tokens)} tokens from {categorization_csv}")
     groups = build_groups(tokens, seed=seed)
-    console.print(f"Built {len(groups)} groups:")
+    if groups_filter:
+        groups = [g for g in groups if g["name"] in groups_filter]
+        console.print(f"Filtered to {len(groups)} groups: {[g['name'] for g in groups]}")
+    console.print(f"Running {len(groups)} groups:")
     for g in groups:
         console.print(f"  {g['name']:>26s}  ({g['n_tokens']:>2d} tokens)  {g['description']}")
 
     # Datasets
     console.print("\n[bold]Loading datasets...[/bold]")
-    math500_ds = load_math500(n_samples)
-    math500_convs = build_math500_conversations(math500_ds)
-    ifeval_ds = load_ifeval(n_samples)
-    ifeval_convs = build_ifeval_conversations(ifeval_ds)
-    console.print(f"  MATH-500: {len(math500_ds)} problems")
-    console.print(f"  IF-Eval:  {len(ifeval_ds)} prompts")
+    if benchmark == "math_full":
+        math_ds = load_math_full(n_samples)
+        math_label = f"MATH-full ({len(math_ds)} problems)"
+    else:
+        math_ds = load_math500(n_samples)
+        math_label = f"MATH-500 ({len(math_ds)} problems)"
+    math_convs = build_math500_conversations(math_ds)
+    console.print(f"  {math_label}")
+
+    if skip_ifeval:
+        ifeval_ds = None
+        ifeval_convs = None
+        console.print("  IF-Eval:  [yellow]skipped (math-only mode)[/yellow]")
+    else:
+        ifeval_ds = load_ifeval(n_samples)
+        ifeval_convs = build_ifeval_conversations(ifeval_ds)
+        console.print(f"  IF-Eval:  {len(ifeval_ds)} prompts")
 
     # Model
     console.print(f"\n[bold]Loading model:[/bold] {model_name}")
@@ -220,19 +243,23 @@ def run_all_groups(
         console.print("\n[bold]Running baseline...[/bold]")
         start = time.time()
         m_result, i_result = run_group(
-            llm, math500_convs, math500_ds, ifeval_convs, ifeval_ds,
-            [], max_new_tokens, seed,
+            llm, math_convs, math_ds, ifeval_convs, ifeval_ds,
+            [], max_new_tokens, seed, skip_ifeval=skip_ifeval,
         )
         baseline = {
             "model": model_name,
+            "benchmark": benchmark,
             "math500": m_result,
             "ifeval": i_result,
             "elapsed_s": round(time.time() - start, 1),
         }
         save_results(baseline_path, baseline)
     base_m = baseline["math500"]["accuracy"]
-    base_i = baseline["ifeval"]["accuracy"]
-    console.print(f"  Baseline: M500={base_m:.1%}  IFE={base_i:.1%}")
+    base_i = baseline["ifeval"]["accuracy"] if baseline.get("ifeval") else None
+    if base_i is not None:
+        console.print(f"  Baseline: MATH={base_m:.1%}  IFE={base_i:.1%}")
+    else:
+        console.print(f"  Baseline: MATH={base_m:.1%}  (IF-Eval skipped)")
 
     # Run each group
     console.print(f"\n[bold]Running {len(groups)} group masks...[/bold]")
@@ -245,29 +272,34 @@ def run_all_groups(
             if gpath.exists():
                 with open(gpath) as f:
                     cached = json.load(f)
-                rows.append({
+                row = {
                     "group": g["name"],
                     "n_tokens": g["n_tokens"],
                     "description": g["description"],
                     "math500_acc": cached["math500"]["accuracy"],
                     "math500_delta": cached["math500"]["accuracy"] - base_m,
-                    "ifeval_acc": cached["ifeval"]["accuracy"],
-                    "ifeval_delta": cached["ifeval"]["accuracy"] - base_i,
-                    "tokens": [t["token_string"] for t in g["tokens"]],
-                })
+                }
+                if cached.get("ifeval") and base_i is not None:
+                    row["ifeval_acc"] = cached["ifeval"]["accuracy"]
+                    row["ifeval_delta"] = cached["ifeval"]["accuracy"] - base_i
+                else:
+                    row["ifeval_acc"] = None
+                    row["ifeval_delta"] = None
+                row["tokens"] = [t["token_string"] for t in g["tokens"]]
+                rows.append(row)
                 progress.update(task, advance=1)
                 continue
 
             token_ids = [t["token_id"] for t in g["tokens"]]
             start = time.time()
             m_result, i_result = run_group(
-                llm, math500_convs, math500_ds, ifeval_convs, ifeval_ds,
-                token_ids, max_new_tokens, seed,
+                llm, math_convs, math_ds, ifeval_convs, ifeval_ds,
+                token_ids, max_new_tokens, seed, skip_ifeval=skip_ifeval,
             )
             elapsed = time.time() - start
 
             m_delta = m_result["accuracy"] - base_m
-            i_delta = i_result["accuracy"] - base_i
+            i_delta = (i_result["accuracy"] - base_i) if (i_result and base_i is not None) else None
 
             save_results(gpath, {
                 "name": g["name"],
@@ -276,24 +308,25 @@ def run_all_groups(
                 "tokens": [{"token_id": t["token_id"], "token_string": t["token_string"]}
                            for t in g["tokens"]],
                 "math500": {**m_result, "delta": m_delta},
-                "ifeval": {**i_result, "delta": i_delta},
+                "ifeval": ({**i_result, "delta": i_delta} if i_result else None),
                 "elapsed_s": round(elapsed, 1),
             })
 
-            rows.append({
+            row = {
                 "group": g["name"],
                 "n_tokens": g["n_tokens"],
                 "description": g["description"],
                 "math500_acc": m_result["accuracy"],
                 "math500_delta": m_delta,
-                "ifeval_acc": i_result["accuracy"],
+                "ifeval_acc": i_result["accuracy"] if i_result else None,
                 "ifeval_delta": i_delta,
                 "tokens": [t["token_string"] for t in g["tokens"]],
-            })
+            }
+            rows.append(row)
 
             progress.update(
                 task, advance=1,
-                description=f"{g['name']} M500 Δ={m_delta:+.1%}",
+                description=f"{g['name']} MATH Δ={m_delta:+.1%}",
             )
 
     # Save summary
@@ -307,47 +340,60 @@ def run_all_groups(
 
     save_results(output_dir / "summary.json", {
         "model": model_name,
+        "benchmark": benchmark,
+        "skip_ifeval": skip_ifeval,
         "baseline": {"math500": base_m, "ifeval": base_i},
         "groups": rows,
     })
 
     # Plot
-    _plot_groups(rows, base_m, base_i, output_dir / "plots" / "groups.png")
+    _plot_groups(rows, base_m, base_i, output_dir / "plots" / "groups.png", skip_ifeval=skip_ifeval)
 
     # Console summary
     console.print()
-    table = Table(title="Group Mask Effects")
+    table = Table(title=f"Group Mask Effects ({benchmark}, {'math-only' if skip_ifeval else 'math+ife'})")
     table.add_column("Group", style="cyan")
     table.add_column("N", justify="right")
-    table.add_column("M500 Δ", justify="right")
-    table.add_column("IF-Eval Δ", justify="right")
+    table.add_column("MATH Δ", justify="right")
+    if not skip_ifeval:
+        table.add_column("IF-Eval Δ", justify="right")
     for r in rows:
-        m_col = f"[red]{r['math500_delta']:+.2%}[/red]" if r['math500_delta'] < 0 else (
-            f"[green]{r['math500_delta']:+.2%}[/green]" if r['math500_delta'] > 0
-            else f"{r['math500_delta']:+.2%}"
-        )
-        i_col = f"[red]{r['ifeval_delta']:+.2%}[/red]" if r['ifeval_delta'] < 0 else (
-            f"[green]{r['ifeval_delta']:+.2%}[/green]" if r['ifeval_delta'] > 0
-            else f"{r['ifeval_delta']:+.2%}"
-        )
-        table.add_row(r["group"], str(r["n_tokens"]), m_col, i_col)
+        def color(d):
+            if d is None:
+                return "—"
+            if d < 0:
+                return f"[red]{d:+.2%}[/red]"
+            if d > 0:
+                return f"[green]{d:+.2%}[/green]"
+            return f"{d:+.2%}"
+        cols = [r["group"], str(r["n_tokens"]), color(r["math500_delta"])]
+        if not skip_ifeval:
+            cols.append(color(r["ifeval_delta"]))
+        table.add_row(*cols)
     console.print(table)
     console.print(f"\nSaved: {csv_path}")
 
 
-def _plot_groups(rows, base_m, base_i, output_path):
+def _plot_groups(rows, base_m, base_i, output_path, skip_ifeval: bool = False):
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(1, 2, figsize=(14, max(5, len(rows) * 0.35)))
 
     names = [r["group"] for r in rows]
     m_deltas = [r["math500_delta"] * 100 for r in rows]
-    i_deltas = [r["ifeval_delta"] * 100 for r in rows]
     y = np.arange(len(rows))
 
-    for ax, deltas, title in [
-        (axes[0], m_deltas, "MATH-500 Δ (%)"),
-        (axes[1], i_deltas, "IF-Eval Δ (%)"),
-    ]:
+    if skip_ifeval:
+        fig, ax = plt.subplots(1, 1, figsize=(8, max(5, len(rows) * 0.35)))
+        axes = [ax]
+        plot_specs = [(ax, m_deltas, "MATH Δ (%)")]
+    else:
+        fig, axes = plt.subplots(1, 2, figsize=(14, max(5, len(rows) * 0.35)))
+        i_deltas = [(r["ifeval_delta"] or 0) * 100 for r in rows]
+        plot_specs = [
+            (axes[0], m_deltas, "MATH Δ (%)"),
+            (axes[1], i_deltas, "IF-Eval Δ (%)"),
+        ]
+
+    for ax, deltas, title in plot_specs:
         colors = ["#8B0000" if d < 0 else "#1B5E20" if d > 0 else "#9E9E9E" for d in deltas]
         ax.barh(y, deltas, color=colors, edgecolor="black", linewidth=0.5)
         ax.axvline(0, color="black", linewidth=0.7)
@@ -360,7 +406,8 @@ def _plot_groups(rows, base_m, base_i, output_path):
             ax.text(d, i, f" {d:+.1f}", va="center",
                     ha="left" if d >= 0 else "right", fontsize=8)
 
-    fig.suptitle("Group Mask Effects on MATH-500 and IF-Eval", fontsize=12)
+    title = "Group Mask Effects" + (" on MATH" if skip_ifeval else " on MATH and IF-Eval")
+    fig.suptitle(title, fontsize=12)
     fig.tight_layout()
     fig.savefig(output_path, dpi=120, bbox_inches="tight")
     plt.close(fig)
@@ -387,6 +434,25 @@ def main():
         default="results/masking/categorization/count/categorization.csv",
     )
     parser.add_argument("--output-dir", type=str, default=None)
+    parser.add_argument(
+        "--benchmark",
+        type=str,
+        choices=["math500", "math_full"],
+        default="math500",
+        help="MATH benchmark size: math500 (500) or math_full (~5000)",
+    )
+    parser.add_argument(
+        "--skip-ifeval",
+        action="store_true",
+        help="Skip IF-Eval evaluation (math-only mode)",
+    )
+    parser.add_argument(
+        "--groups-filter",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Run only these groups (default: all 14)",
+    )
     parser.add_argument("--n-samples", type=int, default=None)
     parser.add_argument("--max-new-tokens", type=int, default=4096)
     parser.add_argument("--tensor-parallel", type=int, default=None)
@@ -394,16 +460,20 @@ def main():
     args = parser.parse_args()
 
     knockout_dir = Path(args.knockout_dir)
-    output_dir = (
-        Path(args.output_dir) if args.output_dir
-        else knockout_dir.parent.parent / "groups" / knockout_dir.name
-    )
+    if args.output_dir:
+        output_dir = Path(args.output_dir)
+    else:
+        suffix = "groups" if args.benchmark == "math500" else f"groups_{args.benchmark}"
+        output_dir = knockout_dir.parent.parent / suffix / knockout_dir.name
 
     run_all_groups(
         model_name=args.model,
         knockout_dir=knockout_dir,
         categorization_csv=Path(args.categorization),
         output_dir=output_dir,
+        benchmark=args.benchmark,
+        skip_ifeval=args.skip_ifeval,
+        groups_filter=args.groups_filter,
         n_samples=args.n_samples,
         max_new_tokens=args.max_new_tokens,
         tensor_parallel_size=args.tensor_parallel,

@@ -19,6 +19,7 @@ MODEL   ?= $(STUDENT)
        masking-eval-hmmt masking-eval-ifeval \
        masking-knockout masking-knockout-smoke masking-categorize \
        masking-cumulative masking-cumulative-smoke \
+       masking-groups masking-groups-validate masking-groups-validate-all \
        test help
 
 exp2:  ## Run full pipeline (bayesian scoring, default)
@@ -188,6 +189,26 @@ masking-cumulative-smoke:  ## Quick smoke (3 k values, 1 random seed, 5 samples)
 		--categorization results/masking/categorization/$(CATEGORY)/categorization.csv \
 		--output-dir results/masking/cumulative_smoke \
 		--k-values 1 5 10 --random-seeds 1 --n-samples 5
+
+masking-groups:  ## Step 4: semantic group masking on MATH-500 (~30-40 min, deterministic)
+	uv run python src/masking/groups.py \
+		--knockout-dir results/masking/knockout/$(CATEGORY) \
+		--categorization results/masking/categorization/$(CATEGORY)/categorization.csv
+
+masking-groups-validate:  ## Step A: validate top groups on MATH-full (~5000 problems, ~2h, math-only)
+	uv run python src/masking/groups.py \
+		--knockout-dir results/masking/knockout/$(CATEGORY) \
+		--categorization results/masking/categorization/$(CATEGORY)/categorization.csv \
+		--benchmark math_full \
+		--skip-ifeval \
+		--groups-filter semantic_discourse top5_pillar cross_task_pillars semantic_domain random_control_a random_control_b
+
+masking-groups-validate-all:  ## Step A completeness: ALL 14 groups on MATH-full (~5h total, resume-safe)
+	uv run python src/masking/groups.py \
+		--knockout-dir results/masking/knockout/$(CATEGORY) \
+		--categorization results/masking/categorization/$(CATEGORY)/categorization.csv \
+		--benchmark math_full \
+		--skip-ifeval
 
 # --- Testing ---
 

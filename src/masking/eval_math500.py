@@ -37,6 +37,51 @@ def load_math500(n_samples: int | None = None):
     return ds
 
 
+def load_math_full(n_samples: int | None = None):
+    """Load the full Hendrycks MATH test set (~5000 problems across 7 subjects).
+
+    Combines all 7 subjects from EleutherAI/hendrycks_math. Answers are extracted
+    from each problem's solution via the \\boxed{...} field. Returns a Dataset with
+    columns matching MATH-500: problem, answer, subject, level, unique_id.
+    """
+    from datasets import Dataset, concatenate_datasets
+
+    subjects = [
+        "algebra", "counting_and_probability", "geometry",
+        "intermediate_algebra", "number_theory", "prealgebra", "precalculus",
+    ]
+    parts = []
+    for subj in subjects:
+        parts.append(load_dataset("EleutherAI/hendrycks_math", subj, split="test"))
+    combined = concatenate_datasets(parts)
+
+    # Extract answers and standardize columns
+    rows = []
+    for idx, s in enumerate(combined):
+        ans = extract_boxed_answer(s["solution"])
+        if ans is None:
+            continue
+        # parse "Level 3" -> 3
+        level_str = s.get("level", "Level 0")
+        try:
+            level = int(level_str.split()[-1])
+        except (ValueError, IndexError):
+            level = 0
+        rows.append({
+            "problem": s["problem"],
+            "solution": s["solution"],
+            "answer": ans,
+            "subject": s.get("type", "unknown"),
+            "level": level,
+            "unique_id": f"{s.get('type', 'unknown')}_{idx}",
+        })
+
+    ds = Dataset.from_list(rows)
+    if n_samples is not None:
+        ds = ds.select(range(min(n_samples, len(ds))))
+    return ds
+
+
 def build_conversations(dataset) -> list[list[dict]]:
     """Build chat conversations from dataset (for use with llm.chat)."""
     return [
