@@ -1,5 +1,19 @@
 __pycache__/
 *.pyc
 .venv/
-results/
 *.egg-info/
+
+# Large tensor artifacts (regeneratable)
+results/**/*.pt
+
+# Smoke tests
+results/smoke/
+results/masking/smoke/
+results/masking/cumulative_smoke/
+results/masking/knockout_smoke/
+
+# Non-determinism runs
+results/masking/**/count_nondeterministic/
+
+# Old / superseded runs
+results/masking/cumulative/count_old_crosssessio/

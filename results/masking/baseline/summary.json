@@ -1,0 +1,107 @@
+{
+  "teacher": {
+    "model": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+    "benchmarks": {
+      "math500": {
+        "accuracy": 0.812,
+        "correct": 406,
+        "total": 500,
+        "elapsed_s": 239.8
+      },
+      "aime2024": {
+        "accuracy": 0.36666666666666664,
+        "correct": 11,
+        "total": 30,
+        "elapsed_s": 150.2
+      },
+      "aime2025": {
+        "accuracy": 0.3333333333333333,
+        "correct": 10,
+        "total": 30,
+        "elapsed_s": 150.8
+      },
+      "hmmt_feb_2025": {
+        "accuracy": 0.1,
+        "correct": 3,
+        "total": 30,
+        "elapsed_s": 155.9
+      },
+      "ifeval": {
+        "accuracy": 0.7707948243992606,
+        "correct": 417,
+        "total": 541,
+        "elapsed_s": 154.1
+      }
+    }
+  },
+  "student_base": {
+    "model": "Qwen/Qwen3-4B-Instruct-2507",
+    "benchmarks": {
+      "math500": {
+        "accuracy": 0.814,
+        "correct": 407,
+        "total": 500,
+        "elapsed_s": 159.4
+      },
+      "aime2024": {
+        "accuracy": 0.23333333333333334,
+        "correct": 7,
+        "total": 30,
+        "elapsed_s": 86.3
+      },
+      "aime2025": {
+        "accuracy": 0.3,
+        "correct": 9,
+        "total": 30,
+        "elapsed_s": 84.6
+      },
+      "hmmt_feb_2025": {
+        "accuracy": 0.13333333333333333,
+        "correct": 4,
+        "total": 30,
+        "elapsed_s": 87.6
+      },
+      "ifeval": {
+        "accuracy": 0.7744916820702403,
+        "correct": 419,
+        "total": 541,
+        "elapsed_s": 99.8
+      }
+    }
+  },
+  "student_offpolicy": {
+    "model": "RockToken/qwen3_30b_a3b_to_4b_offpolicy_20k",
+    "benchmarks": {
+      "math500": {
+        "accuracy": 0.756,
+        "correct": 378,
+        "total": 500,
+        "elapsed_s": 176.1
+      },
+      "aime2024": {
+        "accuracy": 0.26666666666666666,
+        "correct": 8,
+        "total": 30,
+        "elapsed_s": 89.4
+      },
+      "aime2025": {
+        "accuracy": 0.23333333333333334,
+        "correct": 7,
+        "total": 30,
+        "elapsed_s": 88.7
+      },
+      "hmmt_feb_2025": {
+        "accuracy": 0.06666666666666667,
+        "correct": 2,
+        "total": 30,
+        "elapsed_s": 90.8
+      },
+      "ifeval": {
+        "accuracy": 0.7634011090573013,
+        "correct": 413,
+        "total": 541,
+        "elapsed_s": 124.2
+      }
+    }
+  }
+}

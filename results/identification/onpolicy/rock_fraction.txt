@@ -1,0 +1,4 @@
+Total token positions: 4,814,434
+Rock instances: 296,657
+Rock fraction: 0.0616 (6.2%)
+Status: OK

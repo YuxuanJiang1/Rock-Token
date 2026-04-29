@@ -1,0 +1,1164 @@
+{
+  "metadata": {
+    "model": "RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k",
+    "benchmark": "humaneval",
+    "dataset": "openai/openai_humaneval",
+    "n_samples": 164,
+    "accuracy": 0.7012195121951219,
+    "correct": 115,
+    "total": 164,
+    "seed": 42,
+    "timestamp": "2026-04-26T03:08:37.400215+00:00",
+    "max_new_tokens": 1024
+  },
+  "results": [
+    {
+      "task_id": "HumanEval/0",
+      "entry_point": "has_close_elements",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 15\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nfor i in range(len(numbers)):\n    for j in range(i + 1, len(numbers)):\n        if abs(numbers[i] - numbers[j]) < threshold:\n            return True\nreturn False\n```"
+    },
+    {
+      "task_id": "HumanEval/1",
+      "entry_point": "separate_paren_groups",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef separate_paren_groups(paren_string: str) -> List[str]:\n    result = []\n    current_group = \"\"\n    balance = 0\n    \n    # Remove spaces\n    paren_string = paren_string.replace(\" \", \"\")\n    \n    for char in paren_string:\n        if char == '(':\n            if balance == 0:\n                # Start of a new group\n                current_group = \"\"\n            balance += 1\n            current_group += char\n        elif char == ')':\n            balance -= 1\n            current_group += char\n            if balance == 0:\n                # End of a group, add to result\n                result.append(current_group)\n                current_group = \"\"\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/2",
+      "entry_point": "truncate_number",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 12\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn number - int(number)\n```"
+    },
+    {
+      "task_id": "HumanEval/3",
+      "entry_point": "below_zero",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 17\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nbalance = 0\nfor op in operations:\n    balance += op\n    if balance < 0:\n        return True\nreturn False\n```"
+    },
+    {
+      "task_id": "HumanEval/4",
+      "entry_point": "mean_absolute_deviation",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 15\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nmean = sum(numbers) / len(numbers)\nabsolute_deviations = [abs(x - mean) for x in numbers]\nreturn sum(absolute_deviations) / len(numbers)\n```"
+    },
+    {
+      "task_id": "HumanEval/5",
+      "entry_point": "intersperse",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 16\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nresult = []\nfor i, num in enumerate(numbers):\n    result.append(num)\n    if i < len(numbers) - 1:\n        result.append(delimeter)\nreturn result\n```"
+    },
+    {
+      "task_id": "HumanEval/6",
+      "entry_point": "parse_nested_parens",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef parse_nested_parens(paren_string: str) -> List[int]:\n    groups = paren_string.split()\n    result = []\n    \n    for group in groups:\n        max_depth = 0\n        current_depth = 0\n        \n        for char in group:\n            if char == '(':\n                current_depth += 1\n                max_depth = max(max_depth, current_depth)\n            elif char == ')':\n                current_depth -= 1\n                \n        result.append(max_depth)\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/7",
+      "entry_point": "filter_by_substring",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 11\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn [s for s in strings if substring in s]\n```"
+    },
+    {
+      "task_id": "HumanEval/8",
+      "entry_point": "sum_product",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 19\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ntotal_sum = 0\ntotal_product = 1\n\nfor num in numbers:\n    total_sum += num\n    total_product *= num\n\nreturn (total_sum, total_product)\n```"
+    },
+    {
+      "task_id": "HumanEval/9",
+      "entry_point": "rolling_max",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef rolling_max(numbers: List[int]) -> List[int]:\n    if not numbers:\n        return []\n    \n    result = []\n    current_max = numbers[0]\n    \n    for num in numbers:\n        if num > current_max:\n            current_max = num\n        result.append(current_max)\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/10",
+      "entry_point": "make_palindrome",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef make_palindrome(string: str) -> str:\n    \"\"\" Find the shortest palindrome that begins with a supplied string.\n    Algorithm idea is simple:\n    - Find the longest postfix of supplied string that is a palindrome.\n    - Append to the end of the string reverse of a string prefix that comes before the palindromic suffix.\n    >>> make_palindrome('')\n    ''\n    >>> make_palindrome('cat')\n    'catac'\n    >>> make_palindrome('cata')\n    'catac'\n    \"\"\"\n    if not string:\n        return string\n    \n    # Find the longest suffix that is a palindrome\n    for i in range(len(string), 0, -1):\n        suffix = string[-i:]\n        if suffix == suffix[::-1]:\n            # Found the longest palindromic suffix\n            prefix = string[:-i]\n            # Append the reverse of the prefix to the end\n            return string + prefix[::-1]\n    \n    # If no palindromic suffix found (shouldn't happen for non-empty string),\n    # just return the string with its reverse appended\n    return string + string[::-1]\n```"
+    },
+    {
+      "task_id": "HumanEval/11",
+      "entry_point": "string_xor",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef string_xor(a: str, b: str) -> str:\n    result = \"\"\n    for i in range(len(a)):\n        if a[i] == b[i]:\n            result += \"0\"\n        else:\n            result += \"1\"\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/12",
+      "entry_point": "longest",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 15\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nif not strings:\n    return None\n\nmax_length = len(strings[0])\nresult = strings[0]\n\nfor string in strings[1:]:\n    if len(string) > max_length:\n        max_length = len(string)\n        result = string\n\nreturn result\n```"
+    },
+    {
+      "task_id": "HumanEval/13",
+      "entry_point": "greatest_common_divisor",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 12\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nwhile b:\n    a, b = b, a % b\nreturn a\n```"
+    },
+    {
+      "task_id": "HumanEval/14",
+      "entry_point": "all_prefixes",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef all_prefixes(string: str) -> List[str]:\n    result = []\n    for i in range(1, len(string) + 1):\n        result.append(string[:i])\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/15",
+      "entry_point": "string_sequence",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 10\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn ' '.join(str(i) for i in range(n + 1))\n```"
+    },
+    {
+      "task_id": "HumanEval/16",
+      "entry_point": "count_distinct_characters",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 10\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn len(set(string.lower()))\n```"
+    },
+    {
+      "task_id": "HumanEval/17",
+      "entry_point": "parse_music",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef parse_music(music_string: str) -> List[int]:\n    notes = music_string.split()\n    result = []\n    for note in notes:\n        if note == 'o':\n            result.append(4)\n        elif note == 'o|':\n            result.append(2)\n        elif note == '.|':\n            result.append(1)\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/18",
+      "entry_point": "how_many_times",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef how_many_times(string: str, substring: str) -> int:\n    if not string or not substring:\n        return 0\n    \n    count = 0\n    start = 0\n    while True:\n        pos = string.find(substring, start)\n        if pos == -1:\n            break\n        count += 1\n        start = pos + 1  # Move by 1 to allow overlapping matches\n    \n    return count\n```"
+    },
+    {
+      "task_id": "HumanEval/19",
+      "entry_point": "sort_numbers",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef sort_numbers(numbers: str) -> str:\n    word_to_num = {\n        'zero': 0,\n        'one': 1,\n        'two': 2,\n        'three': 3,\n        'four': 4,\n        'five': 5,\n        'six': 6,\n        'seven': 7,\n        'eight': 8,\n        'nine': 9\n    }\n    \n    words = numbers.split()\n    num_values = [word_to_num[word] for word in words]\n    sorted_indices = sorted(range(len(num_values)), key=lambda i: num_values[i])\n    \n    sorted_words = [words[i] for i in sorted_indices]\n    \n    return ' '.join(sorted_words)\n```"
+    },
+    {
+      "task_id": "HumanEval/20",
+      "entry_point": "find_closest_elements",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 22\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nmin_diff = float('inf')\nclosest_pair = (None, None)\n\nfor i in range(len(numbers)):\n    for j in range(i + 1, len(numbers)):\n        diff = abs(numbers[i] - numbers[j])\n        if diff < min_diff:\n            min_diff = diff\n            closest_pair = (min(numbers[i], numbers[j]), max(numbers[i], numbers[j]))\n\nreturn closest_pair\n```"
+    },
+    {
+      "task_id": "HumanEval/21",
+      "entry_point": "rescale_to_unit",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 14\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nmin_val = min(numbers)\nmax_val = max(numbers)\nrange_val = max_val - min_val\n\nreturn [(x - min_val) / range_val for x in numbers]\n```"
+    },
+    {
+      "task_id": "HumanEval/22",
+      "entry_point": "filter_integers",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 11\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn [val for val in values if isinstance(val, int)]\n```"
+    },
+    {
+      "task_id": "HumanEval/23",
+      "entry_point": "strlen",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 10\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn len(string)\n```"
+    },
+    {
+      "task_id": "HumanEval/24",
+      "entry_point": "largest_divisor",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 10\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nfor i in range(n // 2, 0, -1):\n    if n % i == 0:\n        return i\n```"
+    },
+    {
+      "task_id": "HumanEval/25",
+      "entry_point": "factorize",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef factorize(n: int) -> List[int]:\n    factors = []\n    d = 2\n    while d * d <= n:\n        while n % d == 0:\n            factors.append(d)\n            n //= d\n        d += 1\n    if n > 1:\n        factors.append(n)\n    return factors\n```"
+    },
+    {
+      "task_id": "HumanEval/26",
+      "entry_point": "remove_duplicates",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef remove_duplicates(numbers: List[int]) -> List[int]:\n    seen = set()\n    result = []\n    for num in numbers:\n        if num not in seen:\n            seen.add(num)\n            result.append(num)\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/27",
+      "entry_point": "flip_case",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef flip_case(string: str) -> str:\n    return string.swapcase()\n```"
+    },
+    {
+      "task_id": "HumanEval/28",
+      "entry_point": "concatenate",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 11\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn ''.join(strings)\n```"
+    },
+    {
+      "task_id": "HumanEval/29",
+      "entry_point": "filter_by_prefix",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 11\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn [s for s in strings if s.startswith(prefix)]\n```"
+    },
+    {
+      "task_id": "HumanEval/30",
+      "entry_point": "get_positive",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 10\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn [x for x in l if x > 0]\n```"
+    },
+    {
+      "task_id": "HumanEval/31",
+      "entry_point": "is_prime",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef is_prime(n):\n    if n < 2:\n        return False\n    if n == 2:\n        return True\n    if n % 2 == 0:\n        return False\n    i = 3\n    while i * i <= n:\n        if n % i == 0:\n            return False\n        i += 2\n    return True\n```"
+    },
+    {
+      "task_id": "HumanEval/32",
+      "entry_point": "find_zero",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef find_zero(xs: list):\n    \"\"\" xs are coefficients of a polynomial.\n    find_zero find x such that poly(x) = 0.\n    find_zero returns only only zero point, even if there are many.\n    Moreover, find_zero only takes list xs having even number of coefficients\n    and largest non zero coefficient as it guarantees\n    a solution.\n    >>> round(find_zero([1, 2]), 2) # f(x) = 1 + 2x\n    -0.5\n    >>> round(find_zero([-6, 11, -6, 1]), 2) # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3\n    1.0\n    \"\"\"\n    # Check if the number of coefficients is even\n    if len(xs) % 2 != 0:\n        raise ValueError(\"Number of coefficients must be even\")\n    \n    # Find the largest non-zero coefficient (in absolute value)\n    max_coeff = max(abs(coeff) for coeff in xs if coeff != 0)\n    \n    # If all coefficients are zero, no zero point exists (but this is not typical)\n    if max_coeff == 0:\n        raise ValueError(\"All coefficients are zero, no zero point exists\")\n    \n    # Use the fact that for a polynomial with even number of coefficients,\n    # and with the largest non-zero coefficient at the leading term,\n    # we can use the fact that the polynomial is of even degree and\n    # the leading coefficient determines the behavior at infinity.\n    # But the key insight is that the problem implies a specific method:\n    # Since the polynomial has even number of coefficients, and the largest\n    # non-zero coefficient is at the leading term, we can use the fact that\n    # the polynomial is of even degree and the leading coefficient is non-zero.\n    # However, the examples suggest a specific root-finding strategy.\n\n    # Let's analyze the examples:\n    # Example 1: [1, 2] -> f(x) = 1 + 2x -> root at x = -0.5\n    # Example 2: [-6, 11, -6, 1] -> f(x) = x^3 - 6x^2 + 11x - 6\n    # This factors as (x-1)(x-2)(x-3), so root at x=1\n\n    # The problem says: \"find_zero only takes list xs having even number of coefficients\"\n    # and \"largest non zero coefficient as it guarantees a solution\"\n\n    # But the examples suggest that the root is at the location of the **first** non-zero coefficient\n    # or perhaps the root is related to the leading coefficient.\n\n    # Actually, looking at the second example: coefficients are [-6, 11, -6, 1]\n    # So the polynomial is: 1*x^3 -6*x^2 +11*x -6\n    # The roots are 1, 2, 3. But the function returns 1.0.\n\n    # The key insight: the problem says \"find_zero returns only only zero point, even if there are many\"\n    # and \"only takes list xs having even number of coefficients\"\n\n    # But wait: the degree is 3 (odd), but the number of coefficients is 4 (even). So the degree is one less than the number of coefficients.\n\n    # Actually, the number of coefficients is the degree + 1.\n\n    # So if the number of coefficients is even, then the degree is odd.\n\n    # But the problem says \"largest non zero coefficient as it guarantees a solution\"\n\n    # This is confusing.\n\n    # Let's re-read: \"find_zero only takes list xs having even number of coefficients\"\n    # and \"largest non zero coefficient as it guarantees a solution\"\n\n    # But in the examples:\n    # [1, 2] -> degree 1 (odd), 2 coefficients (even) -> OK\n    # [-6, 11, -6, 1] -> degree 3 (odd), 4 coefficients (even) -> OK\n\n    # So the degree is always odd when number of coefficients is even.\n\n    # But the problem says \"largest non zero coefficient as it guarantees a solution\"\n\n    # This is not standard.\n\n    # However, looking at the examples:\n    # [1, 2]: f(x) = 1 + 2x \u2192 root at x = -1/2\n    # [-6, 11, -6, 1]: f(x) = x^3 -6x^2 +11x -6 \u2192 root at x=1\n\n    # Let's try to see if there's"
+    },
+    {
+      "task_id": "HumanEval/33",
+      "entry_point": "sort_third",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 18\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nthird_indices = [i for i in range(len(l)) if i % 3 == 0]\nthird_values = [l[i] for i in third_indices]\nthird_values.sort()\nresult = l[:]\nfor i, val in zip(third_indices, third_values):\n    result[i] = val\nreturn result\n```"
+    },
+    {
+      "task_id": "HumanEval/34",
+      "entry_point": "unique",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 8\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn sorted(list(set(l)))\n```"
+    },
+    {
+      "task_id": "HumanEval/35",
+      "entry_point": "max_element",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\nmax_element = lambda l: max(l)\n```"
+    },
+    {
+      "task_id": "HumanEval/36",
+      "entry_point": "fizz_buzz",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 16\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ncount = 0\nfor i in range(1, n):\n    if i % 11 == 0 or i % 13 == 0:\n        count += str(i).count('7')\nreturn count\n```"
+    },
+    {
+      "task_id": "HumanEval/37",
+      "entry_point": "sort_even",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 17\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\neven_values = [l[i] for i in range(0, len(l), 2)]\neven_values.sort()\nresult = l[:]\nfor i in range(0, len(l), 2):\n    result[i] = even_values[i // 2]\nreturn result\n```"
+    },
+    {
+      "task_id": "HumanEval/38",
+      "entry_point": "decode_cyclic",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\n    # reverse the cyclic shift for each group of 3 characters\n    groups = [s[(3 * i):min((3 * i + 3), len(s))] for i in range((len(s) + 2) // 3)]\n    # reverse the cycle: move first character to the end\n    groups = [(group[1:] + group[0]) if len(group) == 3 else group for group in groups]\n    return \"\".join(groups)\n```"
+    },
+    {
+      "task_id": "HumanEval/39",
+      "entry_point": "prime_fib",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef prime_fib(n: int):\n    if n == 1:\n        return 2\n    if n == 2:\n        return 3\n    if n == 3:\n        return 5\n    if n == 4:\n        return 13\n    if n == 5:\n        return 89\n    \n    # Generate Fibonacci numbers and check for primality\n    a, b = 1, 2\n    count = 0\n    \n    while count < n:\n        if is_prime(a):\n            count += 1\n            if count == n:\n                return a\n        a, b = b, a + b\n    \n    return a\n\ndef is_prime(num):\n    if num < 2:\n        return False\n    if num == 2:\n        return True\n    if num % 2 == 0:\n        return False\n    for i in range(3, int(num**0.5) + 1, 2):\n        if num % i == 0:\n            return False\n    return True\n```"
+    },
+    {
+      "task_id": "HumanEval/40",
+      "entry_point": "triples_sum_to_zero",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef triples_sum_to_zero(l: list):\n    n = len(l)\n    if n < 3:\n        return False\n    \n    # Sort the list to help with the two-pointer technique\n    l.sort()\n    \n    for i in range(n - 2):\n        # Skip duplicate values for the first element\n        if i > 0 and l[i] == l[i - 1]:\n            continue\n            \n        left = i + 1\n        right = n - 1\n        \n        while left < right:\n            current_sum = l[i] + l[left] + l[right]\n            \n            if current_sum == 0:\n                return True\n            elif current_sum < 0:\n                left += 1\n            else:\n                right -= 1\n    \n    return False\n```"
+    },
+    {
+      "task_id": "HumanEval/41",
+      "entry_point": "car_race_collision",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 15\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn n * n\n```"
+    },
+    {
+      "task_id": "HumanEval/42",
+      "entry_point": "incr_list",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 10\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn [x + 1 for x in l]\n```"
+    },
+    {
+      "task_id": "HumanEval/43",
+      "entry_point": "pairs_sum_to_zero",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef pairs_sum_to_zero(l):\n    seen = set()\n    for num in l:\n        complement = -num\n        if complement in seen:\n            return True\n        seen.add(num)\n    return False\n```"
+    },
+    {
+      "task_id": "HumanEval/44",
+      "entry_point": "change_base",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef change_base(x: int, base: int):\n    if x == 0:\n        return \"0\"\n    digits = []\n    while x > 0:\n        digits.append(str(x % base))\n        x //= base\n    return ''.join(reversed(digits))\n```"
+    },
+    {
+      "task_id": "HumanEval/45",
+      "entry_point": "triangle_area",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 8\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn 0.5 * a * h\n```"
+    },
+    {
+      "task_id": "HumanEval/46",
+      "entry_point": "fib4",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef fib4(n: int):\n    if n == 0 or n == 1:\n        return 0\n    if n == 2:\n        return 2\n    if n == 3:\n        return 0\n    \n    # Initialize the first four values\n    a, b, c, d = 0, 0, 2, 0\n    \n    # Compute iteratively from 4 to n\n    for i in range(4, n + 1):\n        next_val = a + b + c + d\n        a, b, c, d = b, c, d, next_val\n    \n    return d\n```"
+    },
+    {
+      "task_id": "HumanEval/47",
+      "entry_point": "median",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 13\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nl.sort()\nn = len(l)\nif n % 2 == 1:\n    return l[n // 2]\nelse:\n    return (l[n // 2 - 1] + l[n // 2]) / 2\n```"
+    },
+    {
+      "task_id": "HumanEval/48",
+      "entry_point": "is_palindrome",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\n    text = text.lower()\n    return text == text[::-1]\n```"
+    },
+    {
+      "task_id": "HumanEval/49",
+      "entry_point": "modp",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef modp(n: int, p: int):\n    \"\"\"Return 2^n modulo p (be aware of numerics).\n    >>> modp(3, 5)\n    3\n    >>> modp(1101, 101)\n    2\n    >>> modp(0, 101)\n    1\n    >>> modp(3, 11)\n    8\n    >>> modp(100, 101)\n    1\n    \"\"\"\n    if n == 0:\n        return 1\n    result = 1\n    base = 2 % p\n    while n > 0:\n        if n % 2 == 1:\n            result = (result * base) % p\n        base = (base * base) % p\n        n //= 2\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/50",
+      "entry_point": "decode_shift",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 14\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn \"\".join([chr(((ord(ch) - 5 - ord(\"a\")) % 26) + ord(\"a\")) for ch in s])\n```"
+    },
+    {
+      "task_id": "HumanEval/51",
+      "entry_point": "remove_vowels",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef remove_vowels(text):\n    vowels = \"aeiouAEIOU\"\n    result = \"\"\n    for char in text:\n        if char not in vowels:\n            result += char\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/52",
+      "entry_point": "below_threshold",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 10\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn all(x < t for x in l)\n```"
+    },
+    {
+      "task_id": "HumanEval/53",
+      "entry_point": "add",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 10\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn x + y\n```"
+    },
+    {
+      "task_id": "HumanEval/54",
+      "entry_point": "same_chars",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef same_chars(s0: str, s1: str):\n    return sorted(s0) == sorted(s1)\n```"
+    },
+    {
+      "task_id": "HumanEval/55",
+      "entry_point": "fib",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\n    if n <= 0:\n        return 0\n    elif n == 1:\n        return 1\n    else:\n        a, b = 0, 1\n        for _ in range(2, n + 1):\n            a, b = b, a + b\n        return b\n```"
+    },
+    {
+      "task_id": "HumanEval/56",
+      "entry_point": "correct_bracketing",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef correct_bracketing(brackets: str):\n    count = 0\n    for bracket in brackets:\n        if bracket == '<':\n            count += 1\n        elif bracket == '>':\n            count -= 1\n            if count < 0:\n                return False\n    return count == 0\n```"
+    },
+    {
+      "task_id": "HumanEval/57",
+      "entry_point": "monotonic",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef monotonic(l: list):\n    if len(l) <= 1:\n        return True\n    \n    increasing = True\n    decreasing = True\n    \n    for i in range(1, len(l)):\n        if l[i] < l[i-1]:\n            increasing = False\n        if l[i] > l[i-1]:\n            decreasing = False\n    \n    return increasing or decreasing\n```"
+    },
+    {
+      "task_id": "HumanEval/58",
+      "entry_point": "common",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 11\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn sorted(list(set(l1) & set(l2)))\n```"
+    },
+    {
+      "task_id": "HumanEval/59",
+      "entry_point": "largest_prime_factor",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef largest_prime_factor(n: int):\n    largest = 1\n    d = 2\n    while d * d <= n:\n        while n % d == 0:\n            largest = d\n            n //= d\n        d += 1\n    if n > 1:\n        largest = n\n    return largest\n```"
+    },
+    {
+      "task_id": "HumanEval/60",
+      "entry_point": "sum_to_n",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 16\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nreturn n * (n + 1) // 2\n```"
+    },
+    {
+      "task_id": "HumanEval/61",
+      "entry_point": "correct_bracketing",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef correct_bracketing(brackets: str):\n    count = 0\n    for bracket in brackets:\n        if bracket == '(':\n            count += 1\n        elif bracket == ')':\n            count -= 1\n            if count < 0:\n                return False\n    return count == 0\n```"
+    },
+    {
+      "task_id": "HumanEval/62",
+      "entry_point": "derivative",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef derivative(xs: list):\n    \"\"\" xs represent coefficients of a polynomial.\n    xs[0] + xs[1] * x + xs[2] * x^2 + ....\n     Return derivative of this polynomial in the same form.\n    >>> derivative([3, 1, 2, 4, 5])\n    [1, 4, 12, 20]\n    >>> derivative([1, 2, 3])\n    [2, 6]\n    \"\"\"\n    if len(xs) <= 1:\n        return [0]\n    return [i * xs[i] for i in range(1, len(xs))]\n```"
+    },
+    {
+      "task_id": "HumanEval/63",
+      "entry_point": "fibfib",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef fibfib(n: int):\n    if n == 0 or n == 1:\n        return 0\n    if n == 2:\n        return 1\n    \n    a, b, c = 0, 0, 1\n    for i in range(3, n + 1):\n        next_val = a + b + c\n        a, b, c = b, c, next_val\n    \n    return c\n```"
+    },
+    {
+      "task_id": "HumanEval/64",
+      "entry_point": "vowels_count",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef vowels_count(s):\n    vowels = \"aeiou\"\n    count = 0\n    s = s.lower()\n    \n    for i, char in enumerate(s):\n        if char in vowels:\n            count += 1\n        elif char == 'y' and i == len(s) - 1:\n            count += 1\n    \n    return count\n```"
+    },
+    {
+      "task_id": "HumanEval/65",
+      "entry_point": "circular_shift",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef circular_shift(x, shift):\n    s = str(x)\n    n = len(s)\n    if shift >= n:\n        return s[::-1]\n    else:\n        return s[-shift:] + s[:-shift]\n```"
+    },
+    {
+      "task_id": "HumanEval/66",
+      "entry_point": "digitSum",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef digitSum(s):\n    total = 0\n    for char in s:\n        if char.isupper():\n            total += ord(char)\n    return total\n```"
+    },
+    {
+      "task_id": "HumanEval/67",
+      "entry_point": "fruit_distribution",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\nimport re\n\ndef fruit_distribution(s, n):\n    # Extract numbers before \"apples\" and \"oranges\" using regex\n    numbers = re.findall(r'\\d+', s)\n    apples = int(numbers[0])\n    oranges = int(numbers[1])\n    # Calculate mangoes as total fruits minus apples and oranges\n    return n - apples - oranges\n```"
+    },
+    {
+      "task_id": "HumanEval/68",
+      "entry_point": "pluck",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef pluck(arr):\n    if not arr:\n        return []\n    \n    min_even = None\n    min_index = -1\n    \n    for i, val in enumerate(arr):\n        if val % 2 == 0:  # even value\n            if min_even is None or val < min_even:\n                min_even = val\n                min_index = i\n    \n    if min_even is None:\n        return []\n    \n    return [min_even, min_index]\n```"
+    },
+    {
+      "task_id": "HumanEval/69",
+      "entry_point": "search",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\nfrom collections import Counter\n\ndef search(lst):\n    count = Counter(lst)\n    result = -1\n    \n    for num, freq in count.items():\n        if num > 0 and freq >= num:\n            result = max(result, num)\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/70",
+      "entry_point": "strange_sort_list",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef strange_sort_list(lst):\n    if not lst:\n        return []\n    \n    result = []\n    lst_copy = lst.copy()\n    lst_copy.sort()\n    \n    while lst_copy:\n        # Take the minimum (first element)\n        result.append(lst_copy.pop(0))\n        # Then take the maximum (last element)\n        if lst_copy:\n            result.append(lst_copy.pop(-1))\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/71",
+      "entry_point": "triangle_area",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\nimport math\n\ndef triangle_area(a, b, c):\n    # Check if the three sides form a valid triangle\n    if a + b <= c or a + c <= b or b + c <= a:\n        return -1\n    \n    # Use Heron's formula to calculate the area\n    s = (a + b + c) / 2  # semi-perimeter\n    area = math.sqrt(s * (s - a) * (s - b) * (s - c))\n    \n    # Round to 2 decimal places\n    return round(area, 2)\n```"
+    },
+    {
+      "task_id": "HumanEval/72",
+      "entry_point": "will_it_fly",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef will_it_fly(q, w):\n    # Check if the list is palindromic (balanced)\n    is_balanced = q == q[::-1]\n    \n    # Check if the sum of elements is less than or equal to the maximum possible weight\n    total_weight = sum(q)\n    can_fly = total_weight <= w\n    \n    # The object will fly if both conditions are met\n    return is_balanced and can_fly\n```"
+    },
+    {
+      "task_id": "HumanEval/73",
+      "entry_point": "smallest_change",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef smallest_change(arr):\n    n = len(arr)\n    changes = 0\n    \n    # Compare elements from both ends moving inward\n    for i in range(n // 2):\n        if arr[i] != arr[n - 1 - i]:\n            changes += 1\n    \n    return changes\n```"
+    },
+    {
+      "task_id": "HumanEval/74",
+      "entry_point": "total_match",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef total_match(lst1, lst2):\n    total1 = sum(len(s) for s in lst1)\n    total2 = sum(len(s) for s in lst2)\n    \n    if total1 < total2:\n        return lst1\n    elif total2 < total1:\n        return lst2\n    else:\n        return lst1\n```"
+    },
+    {
+      "task_id": "HumanEval/75",
+      "entry_point": "is_multiply_prime",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef is_multiply_prime(a):\n    def is_prime(n):\n        if n < 2:\n            return False\n        for i in range(2, int(n**0.5) + 1):\n            if n % i == 0:\n                return False\n        return True\n\n    # Find all prime factors of a\n    prime_factors = []\n    temp = a\n    for i in range(2, a + 1):\n        if temp % i == 0 and is_prime(i):\n            prime_factors.append(i)\n            while temp % i == 0:\n                temp //= i\n        if temp == 1:\n            break\n\n    # Check if there are exactly 3 prime factors (and they are all prime)\n    if len(prime_factors) == 3 and all(is_prime(p) for p in prime_factors):\n        return True\n    return False\n```"
+    },
+    {
+      "task_id": "HumanEval/76",
+      "entry_point": "is_simple_power",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef is_simple_power(x, n):\n    if n == 1:\n        return x == 1\n    if n <= 0 or x <= 0:\n        return False\n    power = 1\n    while power < x:\n        power *= n\n    return power == x\n```"
+    },
+    {
+      "task_id": "HumanEval/77",
+      "entry_point": "iscube",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef iscube(a):\n    if a == 0:\n        return True\n    # Find the cube root of a\n    cube_root = round(a ** (1/3))\n    # Check if cube_root^3 equals a\n    return cube_root ** 3 == a\n```"
+    },
+    {
+      "task_id": "HumanEval/78",
+      "entry_point": "hex_key",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef hex_key(num):\n    prime_hex_digits = {'2', '3', '5', '7', 'B', 'D'}\n    count = 0\n    for digit in num:\n        if digit in prime_hex_digits:\n            count += 1\n    return count\n```"
+    },
+    {
+      "task_id": "HumanEval/79",
+      "entry_point": "decimal_to_binary",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef decimal_to_binary(decimal):\n    if decimal == 0:\n        return \"db0db\"\n    \n    binary = \"\"\n    while decimal > 0:\n        binary = str(decimal % 2) + binary\n        decimal //= 2\n    \n    return \"db\" + binary + \"db\"\n```"
+    },
+    {
+      "task_id": "HumanEval/80",
+      "entry_point": "is_happy",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef is_happy(s):\n    if len(s) < 3:\n        return False\n    \n    for i in range(len(s) - 2):\n        if s[i] == s[i+1] or s[i+1] == s[i+2] or s[i] == s[i+2]:\n            return False\n    return True\n```"
+    },
+    {
+      "task_id": "HumanEval/81",
+      "entry_point": "numerical_letter_grade",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef numerical_letter_grade(grades):\n    result = []\n    for gpa in grades:\n        if gpa == 4.0:\n            result.append('A+')\n        elif gpa > 3.7:\n            result.append('A')\n        elif gpa > 3.3:\n            result.append('A-')\n        elif gpa > 3.0:\n            result.append('B+')\n        elif gpa > 2.7:\n            result.append('B')\n        elif gpa > 2.3:\n            result.append('B-')\n        elif gpa > 2.0:\n            result.append('C+')\n        elif gpa > 1.7:\n            result.append('C')\n        elif gpa > 1.3:\n            result.append('C-')\n        elif gpa > 1.0:\n            result.append('D+')\n        elif gpa > 0.7:\n            result.append('D')\n        elif gpa > 0.0:\n            result.append('D-')\n        else:\n            result.append('E')\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/82",
+      "entry_point": "prime_length",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef prime_length(string):\n    length = len(string)\n    if length < 2:\n        return False\n    if length == 2:\n        return True\n    if length % 2 == 0:\n        return False\n    for i in range(3, int(length**0.5) + 1, 2):\n        if length % i == 0:\n            return False\n    return True\n```"
+    },
+    {
+      "task_id": "HumanEval/83",
+      "entry_point": "starts_one_ends",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef starts_one_ends(n):\n    if n == 1:\n        return 1  # Only one number: 1\n    \n    # Numbers that start with 1: 1 followed by any (n-1) digits\n    # There are 10^(n-1) such numbers\n    start_with_1 = 10 ** (n - 1)\n    \n    # Numbers that end with 1: any (n-1) digits followed by 1\n    # There are 10^(n-1) such numbers\n    end_with_1 = 10 ** (n - 1)\n    \n    # Numbers that both start and end with 1: 1 followed by (n-2) digits, then 1\n    # There are 10^(n-2) such numbers (if n > 1)\n    both_start_and_end = 10 ** (n - 2) if n > 1 else 0\n    \n    # Use inclusion-exclusion principle\n    return start_with_1 + end_with_1 - both_start_and_end\n```"
+    },
+    {
+      "task_id": "HumanEval/84",
+      "entry_point": "solve",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef solve(N):\n    # Convert N to string to access individual digits\n    digits = str(N)\n    \n    # Sum the digits\n    digit_sum = sum(int(d) for d in digits)\n    \n    # Convert the sum to binary and remove the '0b' prefix\n    return bin(digit_sum)[2:]\n```"
+    },
+    {
+      "task_id": "HumanEval/85",
+      "entry_point": "add",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 13\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ntotal = 0\nfor i in range(1, len(lst), 2):  # odd indices: 1, 3, 5, ...\n    if lst[i] % 2 == 0:\n        total += lst[i]\nreturn total\n```"
+    },
+    {
+      "task_id": "HumanEval/86",
+      "entry_point": "anti_shuffle",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef anti_shuffle(s):\n    words = s.split()\n    result = []\n    for word in words:\n        sorted_word = ''.join(sorted(word))\n        result.append(sorted_word)\n    return ' '.join(result)\n```"
+    },
+    {
+      "task_id": "HumanEval/87",
+      "entry_point": "get_row",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef get_row(lst, x):\n    result = []\n    for i, row in enumerate(lst):\n        for j, val in enumerate(row):\n            if val == x:\n                result.append((i, j))\n    result.sort(key=lambda t: (t[0], -t[1]))\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/88",
+      "entry_point": "sort_array",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 18\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nif len(array) <= 1:\n    return array[:]\n\nfirst = array[0]\nlast = array[-1]\nsum_first_last = first + last\n\nif sum_first_last % 2 == 1:\n    return sorted(array)\nelse:\n    return sorted(array, reverse=True)\n```"
+    },
+    {
+      "task_id": "HumanEval/89",
+      "entry_point": "encrypt",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef encrypt(s):\n    result = \"\"\n    for char in s:\n        if char.isalpha():\n            # Convert to lowercase for uniformity\n            char = char.lower()\n            # Shift by 4 positions (2 * 2)\n            shifted = chr((ord(char) - ord('a') + 4) % 26 + ord('a'))\n            result += shifted\n        else:\n            result += char\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/90",
+      "entry_point": "next_smallest",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 14\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nif len(lst) < 2:\n    return None\n\nunique_sorted = sorted(set(lst))\nif len(unique_sorted) < 2:\n    return None\n\nreturn unique_sorted[1]\n```"
+    },
+    {
+      "task_id": "HumanEval/91",
+      "entry_point": "is_bored",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef is_bored(S):\n    sentences = S.split('. ') + S.split('?') + S.split('!')\n    count = 0\n    for sentence in sentences:\n        sentence = sentence.strip()\n        if sentence and sentence.startswith('I'):\n            count += 1\n    return count\n```"
+    },
+    {
+      "task_id": "HumanEval/92",
+      "entry_point": "any_int",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef any_int(x, y, z):\n    # Check if all three numbers are integers\n    if not (isinstance(x, int) and isinstance(y, int) and isinstance(z, int)):\n        return False\n    \n    # Check if one of the numbers is equal to the sum of the other two\n    return (x == y + z) or (y == x + z) or (z == x + y)\n```"
+    },
+    {
+      "task_id": "HumanEval/93",
+      "entry_point": "encode",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef encode(message):\n    vowels = \"aeiouAEIOU\"\n    result = []\n    \n    for char in message:\n        if char.isalpha():\n            # Swap case\n            swapped = char.lower() if char.isupper() else char.upper()\n            \n            # Check if it's a vowel\n            if swapped in \"aeiou\":\n                # Replace with the letter 2 places ahead\n                vowel_map = {\n                    'a': 'c', 'e': 'g', 'i': 'k', 'o': 'q', 'u': 'w',\n                    'A': 'C', 'E': 'G', 'I': 'K', 'O': 'Q', 'U': 'W'\n                }\n                result.append(vowel_map[swapped])\n            elif swapped in \"AEIOU\":\n                # For uppercase vowels, same mapping\n                result.append(vowel_map[swapped])\n            else:\n                # For non-vowel letters, just swap case\n                result.append(swapped)\n        else:\n            # Non-letter characters remain unchanged\n            result.append(char)\n    \n    return ''.join(result)\n```"
+    },
+    {
+      "task_id": "HumanEval/94",
+      "entry_point": "skjkasdkd",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef skjkasdkd(lst):\n    def is_prime(n):\n        if n < 2:\n            return False\n        if n == 2:\n            return True\n        if n % 2 == 0:\n            return False\n        for i in range(3, int(n**0.5) + 1, 2):\n            if n % i == 0:\n                return False\n        return True\n\n    # Find the largest prime number in the list\n    primes = [num for num in lst if is_prime(num)]\n    if not primes:\n        return 0  # No prime found, return 0 (though the examples suggest there's always a prime)\n\n    largest_prime = max(primes)\n    \n    # Sum of digits of the largest prime\n    digit_sum = sum(int(digit) for digit in str(largest_prime))\n    \n    return digit_sum\n```"
+    },
+    {
+      "task_id": "HumanEval/95",
+      "entry_point": "check_dict_case",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 15\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nif not dict:\n    return False\n\nkeys = list(dict.keys())\nall_lower = all(k.islower() for k in keys)\nall_upper = all(k.isupper() for k in keys)\n\nreturn all_lower or all_upper\n```"
+    },
+    {
+      "task_id": "HumanEval/96",
+      "entry_point": "count_up_to",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef count_up_to(n):\n    if n <= 2:\n        return []\n    \n    def is_prime(num):\n        if num < 2:\n            return False\n        if num == 2:\n            return True\n        if num % 2 == 0:\n            return False\n        for i in range(3, int(num**0.5) + 1, 2):\n            if num % i == 0:\n                return False\n        return True\n    \n    primes = []\n    for i in range(2, n):\n        if is_prime(i):\n            primes.append(i)\n    \n    return primes\n```"
+    },
+    {
+      "task_id": "HumanEval/97",
+      "entry_point": "multiply",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef multiply(a, b):\n    # Extract the unit digits of both numbers\n    unit_digit_a = abs(a) % 10\n    unit_digit_b = abs(b) % 10\n    \n    # Return the product of the unit digits\n    return unit_digit_a * unit_digit_b\n```"
+    },
+    {
+      "task_id": "HumanEval/98",
+      "entry_point": "count_upper",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 15\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ncount = 0\nfor i in range(0, len(s), 2):  # iterate over even indices\n    if s[i] in 'AEIOU':\n        count += 1\nreturn count\n```"
+    },
+    {
+      "task_id": "HumanEval/99",
+      "entry_point": "closest_integer",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef closest_integer(value):\n    num = float(value)\n    if num == int(num):\n        return int(num)\n    elif num > 0:\n        if num - int(num) >= 0.5:\n            return int(num) + 1\n        else:\n            return int(num)\n    else:  # num < 0\n        if num - int(num) <= -0.5:\n            return int(num) - 1\n        else:\n            return int(num)\n```"
+    },
+    {
+      "task_id": "HumanEval/100",
+      "entry_point": "make_a_pile",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef make_a_pile(n):\n    pile = []\n    current = n\n    for i in range(n):\n        pile.append(current)\n        if n % 2 == 1:  # n is odd\n            current += 2\n        else:  # n is even\n            current += 2\n    return pile\n```"
+    },
+    {
+      "task_id": "HumanEval/101",
+      "entry_point": "words_string",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef words_string(s):\n    # Replace commas with spaces, then split by whitespace and filter out empty strings\n    return [word for word in s.replace(',', ' ').split() if word]\n```"
+    },
+    {
+      "task_id": "HumanEval/102",
+      "entry_point": "choose_num",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 12\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nif x > y:\n    return -1\n\nfor num in range(x, y + 1):\n    if num % 2 == 0:\n        return num\n\nreturn -1\n```"
+    },
+    {
+      "task_id": "HumanEval/103",
+      "entry_point": "rounded_avg",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 14\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nif n > m:\n    return -1\n\n# Compute the average of integers from n to m inclusive\ntotal = sum(range(n, m + 1))\ncount = m - n + 1\naverage = total / count\n\n# Round to nearest integer\nrounded_avg_int = round(average)\n\n# Convert to binary with '0b' prefix\nbinary_result = bin(rounded_avg_int)\n\nreturn binary_result\n```"
+    },
+    {
+      "task_id": "HumanEval/104",
+      "entry_point": "unique_digits",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef unique_digits(x):\n    result = []\n    for num in x:\n        # Check if all digits in num are odd\n        has_even_digit = False\n        for digit_char in str(num):\n            digit = int(digit_char)\n            if digit % 2 == 0:\n                has_even_digit = True\n                break\n        if not has_even_digit:\n            result.append(num)\n    return sorted(result)\n```"
+    },
+    {
+      "task_id": "HumanEval/105",
+      "entry_point": "by_length",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef by_length(arr):\n    # Filter out numbers that are not between 1 and 9 inclusive\n    valid_nums = [num for num in arr if 1 <= num <= 9]\n    \n    # Sort the valid numbers\n    valid_nums.sort()\n    \n    # Reverse the sorted array\n    valid_nums.reverse()\n    \n    # Map each number to its name\n    name_map = {\n        1: \"One\",\n        2: \"Two\",\n        3: \"Three\",\n        4: \"Four\",\n        5: \"Five\",\n        6: \"Six\",\n        7: \"Seven\",\n        8: \"Eight\",\n        9: \"Nine\"\n    }\n    \n    # Replace each number with its corresponding name\n    result = [name_map[num] for num in valid_nums]\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/106",
+      "entry_point": "f",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef f(n):\n    result = []\n    for i in range(1, n + 1):\n        if i % 2 == 0:\n            # factorial of i\n            factorial = 1\n            for j in range(1, i + 1):\n                factorial *= j\n            result.append(factorial)\n        else:\n            # sum of numbers from 1 to i\n            result.append(i * (i + 1) // 2)\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/107",
+      "entry_point": "even_odd_palindrome",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef even_odd_palindrome(n):\n    even_count = 0\n    odd_count = 0\n    \n    for i in range(1, n + 1):\n        s = str(i)\n        if s == s[::-1]:  # Check if palindrome\n            if i % 2 == 0:\n                even_count += 1\n            else:\n                odd_count += 1\n    \n    return (even_count, odd_count)\n```"
+    },
+    {
+      "task_id": "HumanEval/108",
+      "entry_point": "count_nums",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef count_nums(arr):\n    count = 0\n    for num in arr:\n        digit_sum = 0\n        if num < 0:\n            # Handle negative numbers: first digit is negative\n            num_str = str(abs(num))\n            for i, digit_char in enumerate(num_str):\n                digit = int(digit_char)\n                if i == 0:\n                    digit_sum -= digit  # First digit is negative\n                else:\n                    digit_sum += digit\n        else:\n            # Handle positive numbers\n            for digit_char in str(num):\n                digit_sum += int(digit_char)\n        if digit_sum > 0:\n            count += 1\n    return count\n```"
+    },
+    {
+      "task_id": "HumanEval/109",
+      "entry_point": "move_one_ball",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef move_one_ball(arr):\n    if len(arr) <= 1:\n        return True\n    \n    n = len(arr)\n    # Create a sorted version of the array\n    sorted_arr = sorted(arr)\n    \n    # Try each possible number of right shifts (0 to n-1)\n    for shifts in range(n):\n        # Perform right shift 'shifts' times\n        shifted_arr = arr[-shifts:] + arr[:-shifts]\n        \n        # Check if the shifted array is sorted\n        if shifted_arr == sorted_arr:\n            return True\n    \n    return False\n```"
+    },
+    {
+      "task_id": "HumanEval/110",
+      "entry_point": "exchange",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef exchange(lst1, lst2):\n    # Count the number of odd numbers in lst1\n    odd_in_lst1 = sum(1 for x in lst1 if x % 2 == 1)\n    # Count the number of even numbers in lst2\n    even_in_lst2 = sum(1 for x in lst2 if x % 2 == 0)\n    \n    # To make all elements in lst1 even, we need to replace all odd numbers in lst1\n    # with even numbers from lst2. We can only do this if we have enough even numbers in lst2\n    # to replace the odd numbers in lst1.\n    \n    # If we have at least as many even numbers in lst2 as the number of odd numbers in lst1,\n    # then we can exchange them.\n    if even_in_lst2 >= odd_in_lst1:\n        return \"YES\"\n    else:\n        return \"NO\"\n```"
+    },
+    {
+      "task_id": "HumanEval/111",
+      "entry_point": "histogram",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\nfrom collections import Counter\n\ndef histogram(test):\n    if not test:\n        return {}\n    \n    # Split the string into letters and count frequencies\n    letters = test.split()\n    counter = Counter(letters)\n    \n    # Find the maximum frequency\n    max_count = max(counter.values())\n    \n    # Return all letters that have the maximum frequency\n    result = {letter: count for letter, count in counter.items() if count == max_count}\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/112",
+      "entry_point": "reverse_delete",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef reverse_delete(s, c):\n    # Remove all characters in s that are in c\n    result = ''.join(char for char in s if char not in c)\n    \n    # Check if the result is a palindrome\n    is_palindrome = result == result[::-1]\n    \n    return (result, is_palindrome)\n```"
+    },
+    {
+      "task_id": "HumanEval/113",
+      "entry_point": "odd_count",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef odd_count(lst):\n    result = []\n    for i, s in enumerate(lst):\n        odd_count_in_string = sum(1 for char in s if int(char) % 2 == 1)\n        # Replace 'i' with the count of odd digits\n        template = \"the number of odd elements {}n the str{}ng {} of the {}nput.\"\n        result.append(template.format(odd_count_in_string, odd_count_in_string, odd_count_in_string, odd_count_in_string))\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/114",
+      "entry_point": "minSubArraySum",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef minSubArraySum(nums):\n    min_sum = nums[0]\n    current_sum = nums[0]\n    \n    for i in range(1, len(nums)):\n        current_sum = min(nums[i], current_sum + nums[i])\n        min_sum = min(min_sum, current_sum)\n    \n    return min_sum\n```"
+    },
+    {
+      "task_id": "HumanEval/115",
+      "entry_point": "max_fill",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 43\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ntotal = 0\nfor row in grid:\n    water_in_row = sum(row)\n    # Number of bucket trips needed for this row\n    trips = math.ceil(water_in_row / capacity)\n    total += trips\nreturn total\n```"
+    },
+    {
+      "task_id": "HumanEval/116",
+      "entry_point": "sort_array",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef sort_array(arr):\n    def count_ones(n):\n        return bin(n).count('1')\n    \n    return sorted(arr, key=lambda x: (count_ones(x), x))\n```"
+    },
+    {
+      "task_id": "HumanEval/117",
+      "entry_point": "select_words",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef select_words(s, n):\n    vowels = set(\"aeiouAEIOU\")\n    words = s.split()\n    result = []\n    \n    for word in words:\n        consonant_count = 0\n        for char in word:\n            if char.isalpha() and char not in vowels:\n                consonant_count += 1\n        \n        if consonant_count == n:\n            result.append(word)\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/118",
+      "entry_point": "get_closest_vowel",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef get_closest_vowel(word):\n    vowels = \"aeiouAEIOU\"\n    n = len(word)\n    \n    # Check from right to left, starting from the second-to-last character\n    for i in range(n - 2, 0, -1):  # Start from n-2 to 1 (inclusive), so we have room for two neighbors\n        current = word[i]\n        left_char = word[i - 1]\n        right_char = word[i + 1]\n        \n        # Check if current is a vowel\n        if current in vowels:\n            # Check if both left and right are consonants\n            if left_char not in vowels and right_char not in vowels:\n                return current\n    \n    return \"\"\n```"
+    },
+    {
+      "task_id": "HumanEval/119",
+      "entry_point": "match_parens",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef match_parens(lst):\n    s1, s2 = lst[0], lst[1]\n    \n    # Count open and close parentheses in each string\n    def count_parens(s):\n        open_count = 0\n        close_count = 0\n        for char in s:\n            if char == '(':\n                open_count += 1\n            else:\n                close_count += 1\n        return open_count, close_count\n    \n    open1, close1 = count_parens(s1)\n    open2, close2 = count_parens(s2)\n    \n    # Total open and close parentheses\n    total_open = open1 + open2\n    total_close = close1 + close2\n    \n    # For a balanced string, total open must equal total close\n    if total_open != total_close:\n        return 'No'\n    \n    # Check if we can arrange the strings so that the parentheses are balanced\n    # We need to check both orders: s1 + s2 and s2 + s1\n    \n    def is_balanced(s):\n        balance = 0\n        for char in s:\n            if char == '(':\n                balance += 1\n            else:\n                balance -= 1\n            if balance < 0:\n                return False\n        return balance == 0\n    \n    # Try both orders\n    if is_balanced(s1 + s2) or is_balanced(s2 + s1):\n        return 'Yes'\n    else:\n        return 'No'\n```"
+    },
+    {
+      "task_id": "HumanEval/120",
+      "entry_point": "maximum",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef maximum(arr, k):\n    # Sort the array in descending order and take the first k elements\n    sorted_arr = sorted(arr, reverse=True)\n    return sorted_arr[:k]\n```"
+    },
+    {
+      "task_id": "HumanEval/121",
+      "entry_point": "solution",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 15\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ntotal = 0\nfor i in range(1, len(lst), 2):\n    if lst[i] % 2 == 1:\n        total += lst[i]\nreturn total\n```"
+    },
+    {
+      "task_id": "HumanEval/122",
+      "entry_point": "add_elements",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 20\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ntotal = 0\nfor i in range(k):\n    if arr[i] < 100:\n        total += arr[i]\nreturn total\n```"
+    },
+    {
+      "task_id": "HumanEval/123",
+      "entry_point": "get_odd_collatz",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef get_odd_collatz(n):\n    odd_numbers = set()\n    while n != 1:\n        if n % 2 == 1:\n            odd_numbers.add(n)\n        if n == 1:\n            break\n        if n % 2 == 0:\n            n = n // 2\n        else:\n            n = 3 * n + 1\n    odd_numbers.add(1)  # Ensure 1 is included\n    return sorted(list(odd_numbers))\n```"
+    },
+    {
+      "task_id": "HumanEval/124",
+      "entry_point": "valid_date",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef valid_date(date):\n    # Check if the date string is not empty\n    if not date:\n        return False\n\n    # Check if the format is mm-dd-yyyy (using hyphens)\n    if date.count('-') != 2:\n        return False\n\n    # Split the date string by hyphens\n    parts = date.split('-')\n    if len(parts) != 3:\n        return False\n\n    try:\n        month = int(parts[0])\n        day = int(parts[1])\n        year = int(parts[2])\n    except ValueError:\n        return False\n\n    # Check if month is between 1 and 12\n    if month < 1 or month > 12:\n        return False\n\n    # Check if day is valid for the given month\n    if month in [1, 3, 5, 7, 8, 10, 12]:\n        if day < 1 or day > 31:\n            return False\n    elif month in [4, 6, 9, 11]:\n        if day < 1 or day > 30:\n            return False\n    else:  # month == 2\n        if day < 1 or day > 29:\n            return False\n\n    # Check for leap year (if February has 29 days)\n    if month == 2:\n        if day == 29:\n            # Check if it's a leap year\n            if (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0):\n                pass  # valid leap year\n            else:\n                return False\n        elif day > 28:\n            return False\n\n    return True\n```"
+    },
+    {
+      "task_id": "HumanEval/125",
+      "entry_point": "split_words",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef split_words(txt):\n    # Split on whitespace\n    if ' ' in txt:\n        return txt.split(' ')\n    \n    # Split on commas\n    if ',' in txt:\n        return txt.split(',')\n    \n    # If no whitespace and no commas, count lowercase letters with odd alphabetical order\n    count = 0\n    for char in txt:\n        if char.islower():\n            # ord('a') = 97, so subtract 97 to get 0-based index\n            index = ord(char) - ord('a')\n            if index % 2 == 1:  # odd order\n                count += 1\n    return count\n```"
+    },
+    {
+      "task_id": "HumanEval/126",
+      "entry_point": "is_sorted",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef is_sorted(lst):\n    for i in range(1, len(lst)):\n        if lst[i] < lst[i-1] or lst[i] == lst[i-1]:\n            return False\n    return True\n```"
+    },
+    {
+      "task_id": "HumanEval/127",
+      "entry_point": "intersection",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef intersection(interval1, interval2):\n    start1, end1 = interval1\n    start2, end2 = interval2\n    \n    # Find the intersection of the two intervals\n    intersection_start = max(start1, start2)\n    intersection_end = min(end1, end2)\n    \n    # If the intersection is invalid (no overlap), return \"NO\"\n    if intersection_start > intersection_end:\n        return \"NO\"\n    \n    # Calculate the length of the intersection\n    length = intersection_end - intersection_start + 1\n    \n    # Check if the length is a prime number\n    if length < 2:\n        return \"NO\"\n    \n    is_prime = True\n    for i in range(2, int(length**0.5) + 1):\n        if length % i == 0:\n            is_prime = False\n            break\n    \n    return \"YES\" if is_prime else \"NO\"\n```"
+    },
+    {
+      "task_id": "HumanEval/128",
+      "entry_point": "prod_signs",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 15\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nif not arr:\n    return None\n\nsign_product = 1\nmagnitude_sum = 0\n\nfor num in arr:\n    if num == 0:\n        sign_product = 0\n        magnitude_sum = 0\n        break\n    elif num > 0:\n        sign_product *= 1\n        magnitude_sum += num\n    else:  # num < 0\n        sign_product *= -1\n        magnitude_sum += abs(num)\n\nreturn sign_product * magnitude_sum\n```"
+    },
+    {
+      "task_id": "HumanEval/129",
+      "entry_point": "minPath",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\nfrom collections import deque\n\ndef minPath(grid, k):\n    n = len(grid)\n    # Create a list of all values in the grid, with their positions\n    values = []\n    for i in range(n):\n        for j in range(n):\n            values.append((grid[i][j], i, j))\n    \n    # Sort by value to get the order of cells by value\n    values.sort()\n    \n    # We want to find the lexicographically smallest path of length k\n    # We can use BFS with priority queue (heap) but since we want lexicographic min,\n    # we can try to build the path greedily by choosing the smallest possible value at each step\n    # However, we need to consider that we can revisit cells, but we must avoid infinite loops\n    # But note: the problem says \"a path of length k means visiting exactly k cells\"\n    # and we can revisit cells, but we must not go off the grid.\n    \n    # Since we want the lexicographically smallest path, we can try to build it step by step\n    # using a greedy approach: at each step, try to pick the smallest possible value\n    # that allows us to continue the path of length k.\n    \n    # But the key insight: since we can revisit cells, and we want the lexicographically smallest\n    # sequence of values, we should try to use the smallest values as early as possible.\n    # However, we must ensure that we can complete the path of length k.\n    \n    # We can use a BFS-like approach with state: (current_row, current_col, path_so_far)\n    # But since k can be large and grid is small (N >= 2), we can use a different idea.\n    \n    # Actually, since we want the lexicographically smallest path, and we can revisit cells,\n    # the optimal strategy is to always try to use the smallest available value at each step,\n    # but we must ensure that we can complete the path of length k.\n    \n    # However, the problem is that we can revisit cells, so we can potentially loop forever.\n    # But the answer is guaranteed to be unique, so we can use a greedy approach with backtracking\n    # or use a state space search with pruning.\n    \n    # But note: the grid has N*N cells, and k can be up to N*N, but we are to find the lexicographically smallest path.\n    # Since we can revisit cells, we can potentially go through the same cell multiple times.\n    # But the path is defined by the sequence of values, not the positions.\n    \n    # Important: the path is of length k, so we visit k cells (not necessarily distinct).\n    # We can revisit cells, but we must not go off the grid.\n    \n    # Since we want the lexicographically smallest path, we can try to build it greedily:\n    # At each step, try to pick the smallest value that is reachable from the current cell (including revisiting),\n    # but we must ensure that we can complete the path of length k.\n    \n    # However, since we can revisit, and the grid is finite, we can use a BFS with state (r, c, steps) and keep track of the path.\n    # But k can be large, so we need to be careful.\n    \n    # But note: the problem says \"It is guaranteed that the answer is unique.\"\n    # So we can use a greedy approach: at each step, try to pick the smallest value that is adjacent to the current cell,\n    # and that allows us to complete the path of length k.\n    \n    # But we can't just pick the smallest adjacent value, because we might not be able to complete the path.\n    # However, since we can revisit, and the grid is finite, we can always go back and forth.\n    # But the problem is that we want the lexicographically smallest path.\n    \n    # Let's think differently: since we can revisit cells, and we want the lexicographically smallest path,\n    # the optimal strategy is to use the smallest values as early as possible.\n    # So we can try to build the path by always choosing the smallest possible value at each step,\n    # as long as we can still complete the path of length k.\n    \n    # But how do we know if we can complete the path? We can always go back and forth on a single cell,\n    # so if we are at a cell, we can always stay there (but we can't stay in place unless we allow self-loops).\n    # But the problem says: \"in each step you can move to any of the neighbor cells\"\n    # So we can only move to adjacent cells (up/down/left/right), not stay in place.\n    # So we cannot stay in the same cell.\n    \n    # Therefore, we must move to a neighbor cell each time"
+    },
+    {
+      "task_id": "HumanEval/130",
+      "entry_point": "tri",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 87\n    def check(candidate):\nIndentationError: expected an indented block after 'else' statement on line 30\n",
+      "generated_text": "```python\ndef tri(n):\n    if n == 0:\n        return [1]\n    if n == 1:\n        return [1, 3]\n    \n    result = [1, 3]\n    \n    for i in range(2, n + 1):\n        if i % 2 == 0:\n            result.append(1 + i // 2)\n        else:\n            # For odd i, tri(i) = tri(i-1) + tri(i-2) + tri(i+1)\n            # But we need to compute tri(i+1) first, so we can't compute it directly.\n            # This suggests a problem in the recurrence: it depends on a future term.\n            # Let's re-express the recurrence carefully.\n            # The recurrence says: tri(n) = tri(n-1) + tri(n-2) + tri(n+1) for odd n.\n            # This is problematic because it depends on tri(n+1), which hasn't been computed yet.\n            # So the recurrence as written is not valid for forward computation.\n            # Let's re-express the problem.\n            # Looking at the example:\n            # tri(1) = 3\n            # tri(2) = 1 + 2/2 = 2\n            # tri(3) = tri(2) + tri(1) + tri(4)\n            # But tri(4) is not yet known.\n            # So the recurrence is not standard.\n            # But the example says tri(3) = 2 + 3 + 3 = 8, so tri(4) = 3.\n            # So tri(4) = 3, which matches the even rule: 1 + 4/2 = 3.\n            # So perhaps the recurrence is:\n            # For odd n: tri(n) = tri(n-1) + tri(n-2) + tri(n+1)\n            # But this still depends on tri(n+1), which is not known.\n            # This suggests the recurrence is not well-defined unless we compute backwards.\n            # But the problem says \"return a list of the first n+1 numbers\".\n            # So we must be able to compute forward.\n            # Let's re-express the recurrence correctly.\n            # From the example:\n            # tri(1) = 3\n            # tri(2) = 1 + 2/2 = 2\n            # tri(3) = tri(2) + tri(1) + tri(4) = 2 + 3 + 3 = 8\n            # tri(4) = 1 + 4/2 = 3\n            # So tri(4) = 3, which is consistent.\n            # But to compute tri(3), we need tri(4), which is not known yet.\n            # So the recurrence is not forward-compatible.\n            # This suggests the recurrence is meant to be used in reverse.\n            # But the problem says \"return the first n+1 numbers\", so we need to compute forward.\n            # Therefore, the recurrence must be misstated.\n            # Let's look again:\n            # \"tri(n) = tri(n - 1) + tri(n - 2) + tri(n + 1), if n is odd.\"\n            # This is circular.\n            # Perhaps it's a typo, and it should be:\n            # tri(n) = tri(n - 1) + tri(n - 2) + tri(n - 3) for odd n?\n            # But that doesn't match the example.\n            # tri(3) = tri(2) + tri(1) + tri(0) \u2014 but tri(0) is not defined.\n            # Or maybe the recurrence is:\n            # For odd n: tri(n) = tri(n-1) + tri(n-2) + tri(n-3)\n            # But tri(3) = tri(2) + tri(1) + tri(0) \u2014 tri(0) not defined.\n            # Alternatively, maybe the recurrence is:\n            # tri(n) = tri(n-1) + tri(n-2) + tri(n-3) for n >= 4, but that doesn't help.\n            # Let's try to reverse-engineer from the example:\n            # tri(1) = 3\n            # tri(2) = 2\n            # tri(3) = 8\n            # tri(4) = 3\n            # tri(5) = ? \n            # For n=5 (odd), tri(5) = tri(4) + tri(3) + tri(6)\n            # But tri(6) is unknown.\n            # So unless we have a way to compute tri(6), we can't compute tri(5).\n            # But tri("
+    },
+    {
+      "task_id": "HumanEval/131",
+      "entry_point": "digits",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef digits(n):\n    product = 1\n    for digit_char in str(n):\n        digit = int(digit_char)\n        if digit % 2 == 1:  # odd digit\n            product *= digit\n        else:  # even digit\n            product = 0\n            break\n    return product\n```"
+    },
+    {
+      "task_id": "HumanEval/132",
+      "entry_point": "is_nested",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef is_nested(string):\n    stack = []\n    max_depth = 0\n    \n    for char in string:\n        if char == '[':\n            stack.append(char)\n            max_depth = max(max_depth, len(stack))\n        elif char == ']':\n            if not stack:\n                return False\n            stack.pop()\n    \n    # Check if there was at least one nested bracket\n    # A nested bracket exists if the maximum depth is at least 2\n    return max_depth >= 2\n```"
+    },
+    {
+      "task_id": "HumanEval/133",
+      "entry_point": "sum_squares",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\nimport math\n\ndef sum_squares(lst):\n    total = 0\n    for num in lst:\n        rounded = math.ceil(num)\n        total += rounded ** 2\n    return total\n```"
+    },
+    {
+      "task_id": "HumanEval/134",
+      "entry_point": "check_if_last_char_is_a_letter",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef check_if_last_char_is_a_letter(txt):\n    if not txt:\n        return False\n    \n    # Check if the last character is a letter\n    last_char = txt[-1]\n    if not last_char.isalpha():\n        return False\n    \n    # Check if the last character is not part of a word\n    # A character is not part of a word if it's not preceded by a letter\n    # and it's the last character, so we check if the previous character is not a letter\n    # But we must be careful: if the string has only one character, then it's the last and only character\n    if len(txt) == 1:\n        return True\n    \n    # Check if the second-to-last character is not a letter\n    # If the second-to-last is not a letter, then the last character is not part of a word\n    if not txt[-2].isalpha():\n        return True\n    \n    # If the second-to-last is a letter, then the last character is part of a word\n    return False\n```"
+    },
+    {
+      "task_id": "HumanEval/135",
+      "entry_point": "can_arrange",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef can_arrange(arr):\n    for i in range(1, len(arr)):\n        if arr[i] < arr[i-1]:\n            return i\n    return -1\n```"
+    },
+    {
+      "task_id": "HumanEval/136",
+      "entry_point": "largest_smallest_integers",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 26\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\na = None\nb = None\n\nnegatives = [x for x in lst if x < 0]\npositives = [x for x in lst if x > 0]\n\nif negatives:\n    a = max(negatives)\n\nif positives:\n    b = min(positives)\n\nreturn (a, b)\n```"
+    },
+    {
+      "task_id": "HumanEval/137",
+      "entry_point": "compare_one",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef compare_one(a, b):\n    def parse_value(val):\n        if isinstance(val, (int, float)):\n            return float(val)\n        elif isinstance(val, str):\n            # Replace comma with dot for parsing\n            val = val.replace(',', '.')\n            try:\n                return float(val)\n            except ValueError:\n                raise ValueError(f\"Cannot parse '{val}' as a number\")\n    \n    a_val = parse_value(a)\n    b_val = parse_value(b)\n    \n    if a_val > b_val:\n        return a\n    elif b_val > a_val:\n        return b\n    else:\n        return None\n```"
+    },
+    {
+      "task_id": "HumanEval/138",
+      "entry_point": "is_equal_to_sum_even",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef is_equal_to_sum_even(n):\n    # A number can be written as the sum of 4 positive even numbers\n    # if and only if it is at least 8 (smallest sum: 2+2+2+2 = 8)\n    # and the number is even (since sum of even numbers is even)\n    if n < 8 or n % 2 != 0:\n        return False\n    \n    # For any even number >= 8, we can always write it as sum of 4 positive even numbers\n    # This is because we can use the fact that:\n    # 2 + 2 + 2 + (n - 6) = n, and if n >= 8, then n - 6 >= 2, so it's positive even\n    # But we need to ensure all four numbers are positive even\n    # So we can always do: 2 + 2 + 2 + (n - 6) = n, and since n >= 8, n - 6 >= 2, so it's valid\n    # Therefore, every even number >= 8 can be expressed as sum of 4 positive even numbers\n    return True\n```"
+    },
+    {
+      "task_id": "HumanEval/139",
+      "entry_point": "special_factorial",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef special_factorial(n):\n    if n <= 0:\n        return 1\n    \n    result = 1\n    for i in range(1, n + 1):\n        factorial_i = 1\n        for j in range(1, i + 1):\n            factorial_i *= j\n        result *= factorial_i\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/140",
+      "entry_point": "fix_spaces",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef fix_spaces(text):\n    result = []\n    i = 0\n    while i < len(text):\n        if text[i] == ' ':\n            space_count = 0\n            while i < len(text) and text[i] == ' ':\n                space_count += 1\n                i += 1\n            if space_count > 2:\n                result.append('-')\n            else:\n                result.extend(['_'] * space_count)\n        else:\n            result.append(text[i])\n            i += 1\n    return ''.join(result)\n```"
+    },
+    {
+      "task_id": "HumanEval/141",
+      "entry_point": "file_name_check",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\nimport re\n\ndef file_name_check(file_name):\n    # Check if there is exactly one dot\n    if file_name.count('.') != 1:\n        return 'No'\n    \n    # Split the file name into name and extension\n    name_part, ext_part = file_name.split('.')\n    \n    # Check if name part is empty\n    if not name_part:\n        return 'No'\n    \n    # Check if name part starts with a letter (a-z or A-Z)\n    if not name_part[0].isalpha():\n        return 'No'\n    \n    # Check if the extension is one of the allowed ones\n    allowed_extensions = ['txt', 'exe', 'dll']\n    if ext_part not in allowed_extensions:\n        return 'No'\n    \n    # Count the number of digits in the entire file name\n    digit_count = sum(1 for char in file_name if char.isdigit())\n    if digit_count > 3:\n        return 'No'\n    \n    # If all checks pass\n    return 'Yes'\n```"
+    },
+    {
+      "task_id": "HumanEval/142",
+      "entry_point": "sum_squares",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 22\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ntotal = 0\nfor i in range(len(lst)):\n    if i % 3 == 0:\n        total += lst[i] ** 2\n    elif i % 4 == 0:\n        total += lst[i] ** 3\n    # No change for other indices\nreturn total\n```"
+    },
+    {
+      "task_id": "HumanEval/143",
+      "entry_point": "words_in_sentence",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef words_in_sentence(sentence):\n    def is_prime(n):\n        if n < 2:\n            return False\n        if n == 2:\n            return True\n        if n % 2 == 0:\n            return False\n        for i in range(3, int(n**0.5) + 1, 2):\n            if n % i == 0:\n                return False\n        return True\n\n    words = sentence.split()\n    result = []\n    \n    for word in words:\n        if is_prime(len(word)):\n            result.append(word)\n    \n    return \" \".join(result)\n```"
+    },
+    {
+      "task_id": "HumanEval/144",
+      "entry_point": "simplify",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef simplify(x, n):\n    # Parse x and n into numerator and denominator\n    x_num, x_den = map(int, x.split('/'))\n    n_num, n_den = map(int, n.split('/'))\n    \n    # Compute the product: (x_num * n_num) / (x_den * n_den)\n    product_num = x_num * n_num\n    product_den = x_den * n_den\n    \n    # Check if the result is a whole number\n    # A fraction is a whole number if the numerator is divisible by the denominator\n    return product_num % product_den == 0\n```"
+    },
+    {
+      "task_id": "HumanEval/145",
+      "entry_point": "order_by_points",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef order_by_points(nums):\n    def digit_sum(n):\n        return sum(int(digit) for digit in str(abs(n)))\n    \n    # Create list of (digit_sum, original_index, value) tuples\n    indexed_nums = [(digit_sum(num), i, num) for i, num in enumerate(nums)]\n    \n    # Sort by digit sum first, then by original index\n    indexed_nums.sort()\n    \n    # Extract the values in sorted order\n    return [num for _, _, num in indexed_nums]\n```"
+    },
+    {
+      "task_id": "HumanEval/146",
+      "entry_point": "specialFilter",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef specialFilter(nums):\n    count = 0\n    for num in nums:\n        # Skip negative numbers since we're dealing with first and last digits\n        if num < 0:\n            continue\n        \n        # Convert to string to easily access first and last digits\n        num_str = str(num)\n        first_digit = int(num_str[0])\n        last_digit = int(num_str[-1])\n        \n        # Check if the number is greater than 10\n        if num > 10:\n            # Check if both first and last digits are odd\n            if first_digit % 2 == 1 and last_digit % 2 == 1:\n                count += 1\n    return count\n```"
+    },
+    {
+      "task_id": "HumanEval/147",
+      "entry_point": "get_max_triples",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef get_max_triples(n):\n    # Generate the array a of length n\n    a = [i * i - i + 1 for i in range(1, n + 1)]\n    \n    # Count the number of triples (i, j, k) with i < j < k such that (a[i] + a[j] + a[k]) % 3 == 0\n    count = 0\n    for i in range(n):\n        for j in range(i + 1, n):\n            for k in range(j + 1, n):\n                if (a[i] + a[j] + a[k]) % 3 == 0:\n                    count += 1\n    \n    return count\n```"
+    },
+    {
+      "task_id": "HumanEval/148",
+      "entry_point": "bf",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\nplanets = [\"Mercury\", \"Venus\", \"Earth\", \"Mars\", \"Jupiter\", \"Saturn\", \"Uranus\", \"Neptune\"]\n\ndef bf(planet1, planet2):\n    if planet1 not in planets or planet2 not in planets:\n        return ()\n    \n    index1 = planets.index(planet1)\n    index2 = planets.index(planet2)\n    \n    start = min(index1, index2)\n    end = max(index1, index2)\n    \n    return tuple(planets[start+1:end])\n```"
+    },
+    {
+      "task_id": "HumanEval/149",
+      "entry_point": "sorted_list_sum",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef sorted_list_sum(lst):\n    # Filter out strings with odd lengths\n    even_length_strings = [s for s in lst if len(s) % 2 == 0]\n    \n    # Sort by length first (ascending), then alphabetically for same length\n    sorted_result = sorted(even_length_strings, key=lambda x: (len(x), x))\n    \n    return sorted_result\n```"
+    },
+    {
+      "task_id": "HumanEval/150",
+      "entry_point": "x_or_y",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef x_or_y(n, x, y):\n    def is_prime(num):\n        if num < 2:\n            return False\n        if num == 2:\n            return True\n        if num % 2 == 0:\n            return False\n        for i in range(3, int(num**0.5) + 1, 2):\n            if num % i == 0:\n                return False\n        return True\n\n    return x if is_prime(n) else y\n```"
+    },
+    {
+      "task_id": "HumanEval/151",
+      "entry_point": "double_the_difference",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 18\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ntotal = 0\nfor num in lst:\n    if isinstance(num, int) and num >= 0 and num % 2 == 1:\n        total += num ** 2\nreturn total\n```"
+    },
+    {
+      "task_id": "HumanEval/152",
+      "entry_point": "compare",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef compare(game, guess):\n    return [abs(game[i] - guess[i]) for i in range(len(game))]\n```"
+    },
+    {
+      "task_id": "HumanEval/153",
+      "entry_point": "Strongest_Extension",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef Strongest_Extension(class_name, extensions):\n    def calculate_strength(extension):\n        cap = sum(1 for c in extension if c.isupper())\n        sm = sum(1 for c in extension if c.islower())\n        return cap - sm\n\n    strongest_extension = extensions[0]\n    max_strength = calculate_strength(extensions[0])\n\n    for extension in extensions[1:]:\n        strength = calculate_strength(extension)\n        if strength > max_strength:\n            max_strength = strength\n            strongest_extension = extension\n\n    return f\"{class_name}.{strongest_extension}\"\n```"
+    },
+    {
+      "task_id": "HumanEval/154",
+      "entry_point": "cycpattern_check",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef cycpattern_check(a, b):\n    # Generate all rotations of the second word\n    rotations = []\n    n = len(b)\n    for i in range(n):\n        rotations.append(b[i:] + b[:i])\n    \n    # Check if any rotation is a substring of the first word\n    for rotation in rotations:\n        if rotation in a:\n            return True\n    \n    return False\n```"
+    },
+    {
+      "task_id": "HumanEval/155",
+      "entry_point": "even_odd_count",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef even_odd_count(num):\n    num_str = str(abs(num))\n    even_count = 0\n    odd_count = 0\n    for digit in num_str:\n        digit_int = int(digit)\n        if digit_int % 2 == 0:\n            even_count += 1\n        else:\n            odd_count += 1\n    return (even_count, odd_count)\n```"
+    },
+    {
+      "task_id": "HumanEval/156",
+      "entry_point": "int_to_mini_roman",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef int_to_mini_roman(number):\n    # Define the Roman numeral values in descending order\n    values = [\n        (1000, 'm'),\n        (900, 'cm'),\n        (500, 'd'),\n        (400, 'cd'),\n        (100, 'c'),\n        (90, 'xc'),\n        (50, 'l'),\n        (40, 'xl'),\n        (10, 'x'),\n        (9, 'ix'),\n        (5, 'v'),\n        (4, 'iv'),\n        (1, 'i')\n    ]\n    \n    result = \"\"\n    \n    for value, roman in values:\n        count = number // value\n        if count:\n            result += roman * count\n            number -= value * count\n    \n    return result.lower()\n```"
+    },
+    {
+      "task_id": "HumanEval/157",
+      "entry_point": "right_angle_triangle",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef right_angle_triangle(a, b, c):\n    # Sort the sides to ensure the longest side is last\n    sides = sorted([a, b, c])\n    # Check if the square of the longest side equals the sum of squares of the other two\n    return sides[0]**2 + sides[1]**2 == sides[2]**2\n```"
+    },
+    {
+      "task_id": "HumanEval/158",
+      "entry_point": "find_max",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef find_max(words):\n    if not words:\n        return \"\"\n    \n    max_unique = 0\n    result = \"\"\n    \n    for word in words:\n        unique_chars = len(set(word))\n        if unique_chars > max_unique:\n            max_unique = unique_chars\n            result = word\n        elif unique_chars == max_unique and word < result:\n            result = word\n    \n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/159",
+      "entry_point": "eat",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 38\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\ntotal_eaten = number + need\nif remaining >= need:\n    carrots_left = remaining - need\nelse:\n    carrots_left = 0\n    total_eaten = number + remaining\n\nreturn [total_eaten, carrots_left]\n```"
+    },
+    {
+      "task_id": "HumanEval/160",
+      "entry_point": "do_algebra",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef do_algebra(operator, operand):\n    result = operand[0]\n    for i in range(len(operator)):\n        op = operator[i]\n        num = operand[i + 1]\n        if op == '+':\n            result += num\n        elif op == '-':\n            result -= num\n        elif op == '*':\n            result *= num\n        elif op == '//':\n            result //= num\n        elif op == '**':\n            result **= num\n    return result\n```"
+    },
+    {
+      "task_id": "HumanEval/161",
+      "entry_point": "solve",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef solve(s):\n    has_letter = False\n    result = []\n    \n    for char in s:\n        if char.isalpha():\n            has_letter = True\n            if char.islower():\n                result.append(char.upper())\n            else:\n                result.append(char.lower())\n        else:\n            result.append(char)\n    \n    if not has_letter:\n        return s[::-1]\n    \n    return ''.join(result)\n```"
+    },
+    {
+      "task_id": "HumanEval/162",
+      "entry_point": "string_to_md5",
+      "passed": false,
+      "error": "Traceback (most recent call last):\n  File \"/p/work2/sroydip1/Rock-Token/src/evaluation/eval_humaneval.py\", line 77, in _run_code\n    exec(code, exec_globals)\n  File \"<string>\", line 12\nSyntaxError: 'return' outside function\n",
+      "generated_text": "```python\nimport hashlib\n\nif not text:\n    return None\n\nreturn hashlib.md5(text.encode('utf-8')).hexdigest()\n```"
+    },
+    {
+      "task_id": "HumanEval/163",
+      "entry_point": "generate_integers",
+      "passed": true,
+      "error": null,
+      "generated_text": "```python\ndef generate_integers(a, b):\n    # Ensure we're working with the correct range (smaller to larger)\n    start = min(a, b)\n    end = max(a, b)\n    \n    # Generate even digits between start and end (inclusive)\n    result = []\n    for num in range(start, end + 1):\n        # Check if the number is even\n        if num % 2 == 0:\n            result.append(num)\n    \n    return result\n```"
+    }
+  ]
+}

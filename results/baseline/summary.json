@@ -1,0 +1,52 @@
+{
+  "model": "RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k",
+  "seed": 42,
+  "timestamp": "2026-04-26T03:10:38.634618+00:00",
+  "benchmarks": {
+    "gsm8k": {
+      "accuracy": 0.88855193328279,
+      "correct": 1172,
+      "total": 1319
+    },
+    "mmlu": {
+      "accuracy": 0.7244694487964677,
+      "correct": 10173,
+      "total": 14042
+    },
+    "humaneval": {
+      "accuracy": 0.7012195121951219,
+      "correct": 115,
+      "total": 164
+    },
+    "ifeval": {
+      "accuracy": 0.7541589648798521,
+      "correct": 408,
+      "total": 541,
+      "strict_prompt_accuracy": 0.7541589648798521,
+      "strict_instruction_accuracy": 0.8273381294964028,
+      "loose_prompt_accuracy": 0.7412199630314233,
+      "loose_instruction_accuracy": 0.8165467625899281
+    }
+  },
+  "run_info": {
+    "total_elapsed_s": 660.5319027900696,
+    "per_benchmark": {
+      "gsm8k": {
+        "success": true,
+        "elapsed_s": 147.91037106513977
+      },
+      "mmlu": {
+        "success": true,
+        "elapsed_s": 119.44276142120361
+      },
+      "humaneval": {
+        "success": true,
+        "elapsed_s": 275.1843662261963
+      },
+      "ifeval": {
+        "success": true,
+        "elapsed_s": 117.98285675048828
+      }
+    }
+  }
+}

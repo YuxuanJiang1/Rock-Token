@@ -1,0 +1,269 @@
+{
+  "model": "RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k",
+  "baseline": {
+    "math500": 0.742,
+    "ifeval": 0.7467652495378928
+  },
+  "groups": [
+    {
+      "group": "top5_pillar",
+      "n_tokens": 5,
+      "description": "Top 5 raw Pillars (most negative M500 \u0394)",
+      "math500_acc": 0.722,
+      "math500_delta": -0.020000000000000018,
+      "ifeval_acc": 0.7523105360443623,
+      "ifeval_delta": 0.00554528650646946,
+      "tokens": [
+        " maps",
+        "-like",
+        " job",
+        " advanced",
+        " Python"
+      ]
+    },
+    {
+      "group": "top10_pillar",
+      "n_tokens": 10,
+      "description": "Top 10 raw Pillars",
+      "math500_acc": 0.746,
+      "math500_delta": 0.0040000000000000036,
+      "ifeval_acc": 0.7375231053604436,
+      "ifeval_delta": -0.009242144177449174,
+      "tokens": [
+        " maps",
+        "-like",
+        " job",
+        " advanced",
+        " Python",
+        " educational",
+        " transportation",
+        " local",
+        " Regular",
+        "especially"
+      ]
+    },
+    {
+      "group": "top20_pillar",
+      "n_tokens": 20,
+      "description": "Top 20 raw Pillars",
+      "math500_acc": 0.746,
+      "math500_delta": 0.0040000000000000036,
+      "ifeval_acc": 0.7430683918669131,
+      "ifeval_delta": -0.003696857670979714,
+      "tokens": [
+        " maps",
+        "-like",
+        " job",
+        " advanced",
+        " Python",
+        " educational",
+        " transportation",
+        " local",
+        " Regular",
+        "especially",
+        " mathematics",
+        " clean",
+        " Important",
+        " issues",
+        " financial",
+        " became",
+        " physical",
+        " movement",
+        " understanding",
+        "break"
+      ]
+    },
+    {
+      "group": "top5_stumbling",
+      "n_tokens": 5,
+      "description": "Top 5 raw Stumbling Blocks",
+      "math500_acc": 0.734,
+      "math500_delta": -0.008000000000000007,
+      "ifeval_acc": 0.7467652495378928,
+      "ifeval_delta": 0.0,
+      "tokens": [
+        " shape",
+        " mix",
+        " rounded",
+        " devices",
+        " moving"
+      ]
+    },
+    {
+      "group": "top10_stumbling",
+      "n_tokens": 10,
+      "description": "Top 10 raw Stumbling Blocks",
+      "math500_acc": 0.732,
+      "math500_delta": -0.010000000000000009,
+      "ifeval_acc": 0.7375231053604436,
+      "ifeval_delta": -0.009242144177449174,
+      "tokens": [
+        " shape",
+        " mix",
+        " rounded",
+        " devices",
+        " moving",
+        " cool",
+        " self",
+        " fall",
+        " easy",
+        " represent"
+      ]
+    },
+    {
+      "group": "cross_task_pillars",
+      "n_tokens": 8,
+      "description": "Cross-task Pillars (\u0394 \u2264 -0.5% on both)",
+      "math500_acc": 0.754,
+      "math500_delta": 0.01200000000000001,
+      "ifeval_acc": 0.7430683918669131,
+      "ifeval_delta": -0.003696857670979714,
+      "tokens": [
+        "of",
+        " detailed",
+        " Python",
+        " connecting",
+        " direct",
+        " little",
+        " approximate",
+        " wind"
+      ]
+    },
+    {
+      "group": "cross_task_stumbling",
+      "n_tokens": 2,
+      "description": "Cross-task Stumbling Blocks (\u0394 \u2265 +0.5% on both)",
+      "math500_acc": 0.746,
+      "math500_delta": 0.0040000000000000036,
+      "ifeval_acc": 0.7486136783733827,
+      "ifeval_delta": 0.001848428835489857,
+      "tokens": [
+        " hope",
+        " shape"
+      ]
+    },
+    {
+      "group": "semantic_code_tech",
+      "n_tokens": 5,
+      "description": "Semantic: code/technical identifiers",
+      "math500_acc": 0.74,
+      "math500_delta": -0.0020000000000000018,
+      "ifeval_acc": 0.7504621072088724,
+      "ifeval_delta": 0.003696857670979603,
+      "tokens": [
+        " Python",
+        " Algorithm",
+        " Regular",
+        " Initialize",
+        " maps"
+      ]
+    },
+    {
+      "group": "semantic_domain",
+      "n_tokens": 7,
+      "description": "Semantic: math/domain content nouns",
+      "math500_acc": 0.732,
+      "math500_delta": -0.010000000000000009,
+      "ifeval_acc": 0.7467652495378928,
+      "ifeval_delta": 0.0,
+      "tokens": [
+        " mathematics",
+        " transportation",
+        " educational",
+        " financial",
+        " local",
+        " physical",
+        " state"
+      ]
+    },
+    {
+      "group": "semantic_discourse",
+      "n_tokens": 4,
+      "description": "Semantic: discourse markers",
+      "math500_acc": 0.754,
+      "math500_delta": 0.01200000000000001,
+      "ifeval_acc": 0.7430683918669131,
+      "ifeval_delta": -0.003696857670979714,
+      "tokens": [
+        " Important",
+        "especially",
+        "just",
+        " allows"
+      ]
+    },
+    {
+      "group": "semantic_abstract",
+      "n_tokens": 4,
+      "description": "Semantic: abstract nouns",
+      "math500_acc": 0.74,
+      "math500_delta": -0.0020000000000000018,
+      "ifeval_acc": 0.7412199630314233,
+      "ifeval_delta": -0.00554528650646946,
+      "tokens": [
+        " understanding",
+        " issues",
+        " movement",
+        " situation"
+      ]
+    },
+    {
+      "group": "semantic_modifiers",
+      "n_tokens": 6,
+      "description": "Semantic: modifiers/adjectives",
+      "math500_acc": 0.74,
+      "math500_delta": -0.0020000000000000018,
+      "ifeval_acc": 0.7504621072088724,
+      "ifeval_delta": 0.003696857670979603,
+      "tokens": [
+        " little",
+        " detailed",
+        "direct",
+        " advanced",
+        " outer",
+        " clean"
+      ]
+    },
+    {
+      "group": "random_control_a",
+      "n_tokens": 10,
+      "description": "Random 10-token control (seed=42)",
+      "math500_acc": 0.74,
+      "math500_delta": -0.0020000000000000018,
+      "ifeval_acc": 0.7375231053604436,
+      "ifeval_delta": -0.009242144177449174,
+      "tokens": [
+        " starting",
+        " Python",
+        " treat",
+        "also",
+        " removal",
+        " allowing",
+        " (`",
+        " sun",
+        "much",
+        " Handles"
+      ]
+    },
+    {
+      "group": "random_control_b",
+      "n_tokens": 10,
+      "description": "Random 10-token control (seed=42 variant)",
+      "math500_acc": 0.742,
+      "math500_delta": 0.0,
+      "ifeval_acc": 0.7523105360443623,
+      "ifeval_delta": 0.00554528650646946,
+      "tokens": [
+        " Python",
+        "DP",
+        " flexible",
+        "More",
+        " maps",
+        " treat",
+        " hope",
+        " great",
+        " issues",
+        " (`"
+      ]
+    }
+  ]
+}

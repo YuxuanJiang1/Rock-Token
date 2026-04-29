@@ -1,0 +1,53 @@
+We are asked to find the **smallest positive integer** $ n $ such that $ n^2 $ is divisible by **12**.
+
+---
+
+### Step 1: Understand the condition
+We want:
+$$
+12 \mid n^2
+$$
+That is, $ n^2 $ is divisible by 12.
+
+---
+
+### Step 2: Prime factorization of 12
+$$
+12 = 2^2 \times 3
+$$
+
+So, for $ n^2 $ to be divisible by $ 2^2 \times 3 $, the prime factorization of $ n^2 $ must include at least:
+- $ 2^2 $
+- $ 3^1 $
+
+But remember: $ n^2 $ is a **square**, so all exponents in its prime factorization must be **even**.
+
+So, in $ n^2 $, the exponent of 2 must be **at least 2**, and **even** → okay, 2 is even.
+
+But the exponent of 3 must be **at least 1**, and **even** → so the **smallest even exponent ≥ 1** is **2**.
+
+Therefore, $ n^2 $ must have at least:
+- $ 2^2 $
+- $ 3^2 $
+
+So:
+$$
+n^2 \text{ must be divisible by } 2^2 \times 3^2 = 4 \times 9 = 36
+$$
+
+Thus, $ n^2 $ must be divisible by 36.
+
+But we only need $ n^2 $ divisible by 12, so we can go further.
+
+Wait — let's be careful.
+
+We need $ n^2 $ divisible by $ 12 = 2^2 \times 3^1 $
+
+But since $ n^2 $ must have **even exponents** in its prime factorization, the exponent of 3 in $ n^2 $ must be **at least 2** (since 1 is odd and not allowed).
+
+So, to satisfy $ 3 \mid n^2 $, we need $ 3^2 \mid n^2 $, because the exponent must be even and at least 1.
+
+Therefore, $ n^2 $ must be divisible by $ 2^2 \times 3^2 = 36 $
+
+So $ n^2 $ must be divisible by 36.
+

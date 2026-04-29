@@ -1,0 +1,69 @@
+{
+  "config": {
+    "epsilon": 0.01,
+    "alpha": 0.05,
+    "n_resamples": 10000,
+    "n_tokens": 200,
+    "knockout_dir": "results/masking/knockout/count"
+  },
+  "baseline": {
+    "math500": 0.742,
+    "ifeval": 0.7467652495378928
+  },
+  "math500_categories": {
+    "Strong Pillar": 0,
+    "Weak Pillar": 0,
+    "Neutral": 200,
+    "Weak Stumbling Block": 0,
+    "Strong Stumbling Block": 0
+  },
+  "ifeval_categories": {
+    "Strong Pillar": 0,
+    "Weak Pillar": 0,
+    "Neutral": 199,
+    "Weak Stumbling Block": 0,
+    "Strong Stumbling Block": 1
+  },
+  "cross_task_agreement": {
+    "Neutral|Neutral": 199,
+    "Neutral|Strong Stumbling Block": 1
+  },
+  "feature_correlations": {
+    "frequency": {
+      "math500_pearson_r": -0.17284083248458043,
+      "ifeval_pearson_r": 0.0018940807723924124
+    },
+    "rock_count": {
+      "math500_pearson_r": -0.16548859341941907,
+      "ifeval_pearson_r": -0.00801029495935712
+    },
+    "rock_rate": {
+      "math500_pearson_r": 0.16416520698109496,
+      "ifeval_pearson_r": -0.09924879111703622
+    },
+    "avg_loss_before": {
+      "math500_pearson_r": 0.008211437771440686,
+      "ifeval_pearson_r": -0.029397304171198547
+    },
+    "avg_loss_after": {
+      "math500_pearson_r": -0.021679112910050837,
+      "ifeval_pearson_r": -0.06403475979413653
+    },
+    "avg_improvement": {
+      "math500_pearson_r": 0.06580069316091469,
+      "ifeval_pearson_r": 0.07412330140377131
+    },
+    "avg_teacher_entropy": {
+      "math500_pearson_r": 0.04530138918714274,
+      "ifeval_pearson_r": -0.04513011301056479
+    },
+    "avg_student_entropy_before": {
+      "math500_pearson_r": 0.04550044380720534,
+      "ifeval_pearson_r": -0.13323105829864132
+    },
+    "avg_student_entropy_after": {
+      "math500_pearson_r": 0.06638024139134972,
+      "ifeval_pearson_r": -0.11848414054191028
+    }
+  }
+}
