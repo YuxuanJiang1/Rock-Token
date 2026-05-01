@@ -2,8 +2,8 @@
 set -e
 set -x
 
-PYTHON=/home/yuxuanj1/.conda/envs/qwen/bin/python
-RAY=/home/yuxuanj1/.conda/envs/qwen/bin/ray
+PYTHON=/home/xxj1/.conda/envs/qwen/bin/python
+RAY=/home/xxj1/.conda/envs/qwen/bin/ray
 
 export CUDA_HOME=/usr/local/cuda-12.8
 export PATH=$CUDA_HOME/bin:$PATH
@@ -29,13 +29,13 @@ echo "CUDA_HOME=$CUDA_HOME"
 # =========================
 # Paths
 # =========================
-KD_ROOT=/p/work2/yuxuanj1/rocktoken/stumbling_token
+KD_ROOT=
 NEW_RUNNER_DIR=${KD_ROOT}/new_runner
 
-STUDENT_MODEL=/p/work2/yuxuanj1/opd/models/Qwen3-4B-Instruct-2507
-TEACHER_MODEL=/p/work2/yuxuanj1/opd/models/Qwen3-30B-A3B
-TRAIN_DATA=/p/work2/yuxuanj1/opd/data/OpenThoughts3-1.2M/openthoughts_prompt_math_10k.jsonl
-SAVE_DIR=/p/work2/yuxuanj1/rocktoken/stumb/random
+STUDENT_MODEL=/p/work2/xxj1/opd/models/Qwen3-4B-Instruct-2507
+TEACHER_MODEL=/p/work2/xxj1/opd/models/Qwen3-30B-A3B
+TRAIN_DATA=/p/work2/xxj1/opd/data/OpenThoughts3-1.2M/openthoughts_prompt_math_10k.jsonl
+SAVE_DIR=/p/work2/xxj1/rocktoken/stumb/random
 
 mkdir -p ${SAVE_DIR}
 
@@ -96,7 +96,7 @@ $PYTHON -m kdflow.cli.train_kd_on_policy \
   --kd_ratio 1.0 \
   --kd_temperature 1.0 \
   --kd_algorithm token_freeze_kd \
---token_freeze_path //p/work2/yuxuanj1/rocktoken/stumbling_token/random.json \
+--token_freeze_path //p/work2/xxj1/rocktoken/stumbling_token/random.json \
 --freeze_weight 0.0 \
   --kd_loss_fn rkl \
   --teacher_tp_size 2 \
