@@ -1,0 +1,69 @@
+
+
+Existing token-selective methods~\cite{wangbeyond} typically focus on identifying which tokens should receive more learning signals. We argue for the opposite: identifying and suppressing tokens that absorb significant optimization updates without contributing to the model's reasoning capability. 
+
+We hypothesize that a subset of \textit{Rock Tokens}, which we term \textbf{Stumbling Tokens}, represents a form of \textbf{Distillation Friction}. These tokens are characterized by a persistent conflict between the student's intrinsic preference and the teacher's specific verbatim style, yet they remain functionally redundant to the underlying logic. During On-Policy Distillation (OPD), the student often spends excessive gradient steps trying to "correct" these tokens. By allowing the student to retain its own "accent" (i.e., masking or down-weighting Stumbling Tokens), the model can reallocate its limited capacity toward learning actual reasoning logic, leading to significantly faster convergence.
+
+\subsubsection{The Core Insight: Decoupling Style from Logic}
+Our core insight is that Stumbling Tokens typically correspond to the model’s personalized expression rather than its reasoning ability. By removing these tokens, we eliminate the "noise" in the teacher's feedback, encouraging the student to focus on the essential reasoning path, thereby improving overall learning effectiveness.
+
+\subsection{Core Experimental Design}
+To validate the impact of Stumbling Tokens, we design three comparative training regimes:
+
+\begin{itemize}
+    \item \textbf{Baseline OPD}: A standard on-policy distillation process without any token-level intervention.
+    \item \textbf{Rock-Freeze (Main Method)}: We identify the set of Rock Tokens $\mathcal{R}$ based on persistent high-loss patterns. We adopt a radical "Just Not Train" approach by setting the gradients of all $t \in \mathcal{R}$ to zero.
+    \item \textbf{Freq-Matched Freeze (Control Group)}: To ensure gains are not due to frequency-related artifacts, we randomly select a subset $\mathcal{S}$ that matches the \textbf{token frequency distribution} of $\mathcal{R}$ within the training corpus and apply the same freezing strategy.
+\end{itemize}
+
+\subsubsection{Training Dynamics and Performance}
+Table~\ref{tab:main_results} illustrates the reasoning accuracy at various checkpoints, highlighting the acceleration effect of our method.
+
+\begin{table}[h]
+\centering
+\caption{Training dynamics: Accuracy on reasoning tasks at different training stages.}
+\label{tab:main_results}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Method} & \textbf{25\% Steps} & \textbf{50\% Steps} & \textbf{75\% Steps} & \textbf{100\% Steps} & \textbf{Conv. Speed} \\ \midrule
+Baseline OPD    & -                   & -                   & -                   & -                    & $1.0\times$          \\
+Freq-Matched    & -                   & -                   & -                   & -                    & -                    \\
+Rock-Freeze     & -                   & -                   & -                   & -                    & -                    \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Additional Experiments and Analysis: Mechanism and Refinement}
+Beyond the core performance, we conduct additional experiments to explore the fine-grained trade-offs of token intervention.
+
+\begin{enumerate}
+    \item \textbf{Soft Intervention (Rock-Downweight)}
+    \begin{itemize}
+        \item \textit{Insight}: To distinguish between pure \textit{Stumbling} (noise) and \textit{Stylish} (benign redundancy). Soft weights might preserve style while maintaining efficiency.
+        \item \textit{Design}: Replace the binary mask with a scaling factor $\alpha \in (0, 1)$ on Rock Token loss.
+    \end{itemize}
+    \item \textbf{Structural Refinement (Pillar-Aware Rock-Top)}
+    \begin{itemize}
+        \item \textit{Insight}: Rock Tokens are heterogeneous; some are "necessary difficulties" (Pillars). Protecting them ensures reasoning integrity.
+        \item \textit{Design}: Protect the top-$k$ critical tokens (via logit-probing) within the Rock set from being frozen.
+    \end{itemize}
+\end{enumerate}
+
+\begin{table}[h]
+\centering
+\caption{Analysis of refined intervention strategies on Style vs. Reasoning Logic.}
+\label{tab:additional_analysis}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Refinement Strategy} & \textbf{Reasoning Acc} & \textbf{Style Similarity} & \textbf{Conclusion} \\ \midrule
+Rock-Downweight              & -                      & -                         & -                   \\
+Pillar-Aware (Rock-Top)      & -                      & -                         & -                   \\ \bottomrule
+\end{tabular}
+\end{table}
+
+
+
+\begin{takeaway}
+\textcolor{tabblue}{\textbf{Take-away}}~
+Rock token doesn't provide more training signal.
+By removing stumbling, more consistent training signal.
+\end{takeaway}

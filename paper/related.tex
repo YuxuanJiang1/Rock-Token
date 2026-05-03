@@ -1,0 +1,18 @@
+\subsection{On-Policy Distillation for LLM Post-Training}
+
+On-policy distillation (OPD) has recently become an important post-training paradigm for improving the reasoning capabilities of large language models. Unlike conventional supervised fine-tuning, which trains the model on fixed offline demonstrations, OPD optimizes the student model on its own generated trajectories. At the same time, unlike standard RLVR, which typically provides sparse sequence-level rewards based on final answer correctness, OPD leverages a teacher model to provide dense token-level supervision along the student trajectory. In this sense, OPD combines the exploratory nature of on-policy learning with the fine-grained guidance of knowledge distillation, making it a natural successor to SFT and RLVR in modern post-training pipelines.
+
+Recent large-scale systems have demonstrated the practical effectiveness of this paradigm. Models such as DeepSeek-V4~\cite{deepseekv4}, MiMo~\cite{xiao2026mimo}, and Qwen-3~\cite{yang2025qwen3} incorporate OPD-style training as a post-training stage after SFT and RLVR, showing that large reasoning models can continue to benefit from teacher-guided optimization. In industrial settings, one emerging practice is to first train multiple expert models through RLVR on different domains or tasks, and then distill these expert behaviors into a stronger model through multi-teacher OPD, sometimes forming mixture-of-experts architectures. These results suggest that OPD is not merely a compression technique for transferring knowledge from a larger model to a smaller one, but a general training mechanism for consolidating, refining, and scaling reasoning behaviors.
+
+Beyond teacher-student distillation across different models, recent self-distillation methods further show that OPD-style learning can be effective even when the same model serves as both teacher and student~\cite{zhao2026self,shenfeld2026self,hubotter2026reinforcement}. These approaches suggest that useful learning signals can be generated from the model's own trajectories and reused to improve its future behavior. Such findings strengthen the view that OPD is a general framework for extracting and amplifying latent reasoning capabilities, rather than simply imitating an external teacher.
+
+Despite its effectiveness, OPD also presents important limitations. Recent studies suggest that OPD may fail when the teacher and student models are poorly aligned, especially in cross-family distillation settings where the models differ substantially in vocabulary usage, reasoning style, or thinking patterns. Other work further argues that successful distillation may require compatibility not only at the level of final answers, but also at the level of intermediate reasoning patterns. These studies mainly analyze teacher-student compatibility from a global perspective, such as vocabulary overlap, model-family relatedness, or overall reasoning-style mismatch. In contrast, our work focuses on a more fine-grained source of incompatibility: a small set of persistent high-loss tokens where the teacher and student remain strongly misaligned even after OPD training saturates. By studying these \textbf{Rock Tokens}, we provide a token-level view of when OPD supervision remains useful and when it becomes unproductive.
+
+
+\subsection{Important Tokens during Inference TIme}
+Previous work ~\cite{gupta2025llms,beurer2024guiding}
+
+
+\subsection{Important Tokens during Trainig Time}
+
+Previous work~\cite{wangbeyond,wu2025mitigating,yang2025token,meng2026sparse}

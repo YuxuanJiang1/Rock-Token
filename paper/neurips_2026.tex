@@ -1,0 +1,301 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2026
+
+% The authors should use one of these tracks.
+% Before accepting by the NeurIPS conference, select one of the options below.
+% 0. "default" for submission
+\usepackage{neurips_2026}
+
+
+% After being accepted, the authors should add "final" behind the track to compile a camera-ready version.
+% 1. Main Track
+ % \usepackage[main, final]{neurips_2026}
+% 2. Position Paper Track
+%  \usepackage[position, final]{neurips_2026}
+% 3. Evaluations & Datasets Track
+ % \usepackage[eandd, final]{neurips_2026}
+% 4. Creative AI Track
+%  \usepackage[creativeai, final]{neurips_2026}
+% 5. Workshop with single-blind reviewing
+%  \usepackage[sglblindworkshop, final]{neurips_2026}
+% 6. Workshop with double-blind reviewing
+%  \usepackage[dblblindworkshop, final]{neurips_2026}
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote.
+% For workshops (5., 6.), the authors should add the name of the workshop, "\workshoptitle" command is used to set the workshop title.
+% \workshoptitle{WORKSHOP TITLE}
+
+% "preprint" option is used for arXiv or other preprint submissions
+ % \usepackage[preprint]{neurips_2026}
+
+% to avoid loading the natbib package, add option nonatbib:
+%    \usepackage[nonatbib]{neurips_2026}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{amsmath}
+
+\definecolor{tabblue}{HTML}{1F77B4}
+\definecolor{taborange}{HTML}{FF7F0E}
+\definecolor{tabgreen}{HTML}{2CA02C}
+\definecolor{tabred}{HTML}{D62728}
+\definecolor{tabpurple}{HTML}{9467BD}
+\definecolor{tabbrown}{HTML}{8C564B}
+\definecolor{tabpink}{HTML}{E377C2}
+\definecolor{tabgray}{HTML}{7F7F7F}
+\definecolor{tabolive}{HTML}{BCBD22}
+\definecolor{tabcyan}{HTML}{17BECF}
+
+\usepackage{rotating} 
+\usepackage[most]{tcolorbox}
+\newtcolorbox{takeaway}{
+  colback=blue!5,
+  colframe=blue!5,
+  width=1\textwidth,
+  boxrule=0pt,
+  left=10pt, right=10pt, top=8pt, bottom=8pt,
+  fontupper=\normalsize
+}
+
+
+\title{Cornerstones or Stumbling Blocks? Deciphering the Rock Tokens in On-Policy Distillation}
+
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+
+\author{Yuxuan Jiang} 
+
+
+
+\begin{document}
+
+
+\maketitle
+
+
+\begin{abstract}
+On-policy distillation (OPD) improves large language models by providing token-level teacher supervision on the student model's own generated trajectories. Since high-loss tokens mark positions where the student strongly deviates from the teacher, they are often regarded as critical correction points that drive efficient learning. However, we identify a counterintuitive phenomenon: even after OPD training has saturated, a non-trivial subset of tokens remains persistently high-loss. We call these persistent tokens \textbf{Rock Tokens}.
+
+This paper investigates why Rock Tokens persist and what role they play in OPD. We examine whether they represent unresolved learning opportunities, necessary components of the student's reasoning trajectory, or obstacles to efficient optimization. To answer these questions, we conduct token-level statistical analysis, gradient-direction analysis, and controlled intervention experiments. Our results reveal that persistent high loss is not a uniform signal of remaining learnable information, but reflects multiple underlying mechanisms in token-level distillation. These findings challenge the common intuition that all high-loss tokens should be optimized more aggressively, and provide a foundation for more selective and efficient OPD training.
+\end{abstract}
+
+
+
+\section{Introduction}
+\input{intro.tex}
+
+
+
+
+\section{Preliminaries}
+
+\subsection{On-Policy Distillation}
+\label{Preliminaries:On-Policy Distillation}
+On-policy distillation (OPD) trains a student policy $\pi_\theta$ using trajectories sampled from its own distribution, while a teacher policy $\pi_T$ provides dense token-level supervision. Specifically, given a trajectory $x_{1:T} \sim \pi_\theta$, the student is optimized to match the teacher's conditional distribution at each timestep. :contentReference[oaicite:1]{index=1}
+
+Following prior work, we adopt the per-token reverse KL objective:
+\begin{equation}
+\mathcal{L}_{\text{OPD}}(\theta)
+= \mathbb{E}_{x_{1:T} \sim \pi_\theta}
+\sum_{t=1}^{T}
+D_{\text{KL}}\!\big(
+\pi_\theta(\cdot \mid x_{<t})
+\;\|\;
+\pi_T(\cdot \mid x_{<t})
+\big),
+\end{equation}
+
+which can be written as:
+\begin{equation}
+D_{\text{KL}}(\pi_\theta \| \pi_T)
+=
+\mathbb{E}_{x \sim \pi_\theta}
+\Big[
+\log \pi_\theta(x_{t+1} \mid x_{<t})
+-
+\log \pi_T(x_{t+1} \mid x_{<t})
+\Big].
+\end{equation}
+
+This formulation provides a dense learning signal at every token position, aligning the student to the teacher on states visited by the student itself.
+
+\subsection{Rock Tokens}
+\label{Preliminaries:Rock Tokens}
+We observe that during OPD training, most high-loss tokens gradually diminish, but a small subset of tokens consistently exhibits persistent divergence between student and teacher. We refer to these tokens as \textit{rock tokens}.
+
+Formally, let the per-token loss be:
+\begin{equation}
+\ell_t =
+D_{\text{KL}}\!\big(
+\pi_\theta(\cdot \mid x_{<t})
+\;\|\;
+\pi_T(\cdot \mid x_{<t})
+\big).
+\end{equation}
+
+We define the rock score of a token type $v$ as:
+\begin{equation}
+R(v)
+=
+\mathbb{E}_{(x,t): x_t = v}
+\left[
+\ell_t
+\right]
+\cdot
+\mathrm{Freq}(v),
+\end{equation}
+
+where $\mathrm{Freq}(v)$ denotes the frequency of token $v$ in student-generated trajectories.
+
+Tokens with persistently high $R(v)$ across training steps are identified as rock tokens, representing regions of sustained teacher--student mismatch.
+
+\subsection{Stumbling Tokens and Token-Level Reweighting}
+\label{Preliminaries:Stumbling Tokens and Token-Level Reweighting}
+Not all rock tokens contribute equally to reasoning performance. We further decompose rock tokens into:
+\begin{itemize}
+\item \textbf{Pillar tokens}: structurally necessary tokens whose removal degrades reasoning.
+\item \textbf{Stumbling tokens}: high-loss tokens that contribute little to reasoning performance but absorb significant optimization signal.
+\end{itemize}
+
+We define stumbling tokens as:
+\begin{equation}
+\mathcal{S}
+=
+\{ v \mid v \in \mathcal{R}, \; v \notin \mathcal{P} \},
+\end{equation}
+where $\mathcal{R}$ and $\mathcal{P}$ denote the sets of rock and pillar tokens, respectively.
+
+To mitigate their effect, we introduce token-level reweighting:
+\begin{equation}
+\mathcal{L}_{\text{weighted}}
+=
+\mathbb{E}_{x \sim \pi_\theta}
+\sum_{t=1}^{T}
+w(x_t)
+\cdot
+\ell_t,
+\end{equation}
+
+where:
+\begin{equation}
+w(v) =
+\begin{cases}
+\lambda, & v \in \mathcal{S} \\
+1, & \text{otherwise}
+\end{cases}
+\quad \text{with } \lambda \in [0,1].
+\end{equation}
+
+This corresponds to a \textit{stumbling freeze} or down-weighting mechanism that reduces optimization pressure on low-utility tokens.
+
+\subsection{Frequency-Matched Control}
+\label{Preliminaries:Frequency-Matched Control}
+To isolate the effect of token semantics from frequency, we construct a frequency-matched control group $\mathcal{S}_{\text{ctrl}}$, consisting of randomly sampled tokens with the same frequency distribution as $\mathcal{S}$.
+
+We define the control loss as:
+\begin{equation}
+\mathcal{L}_{\text{ctrl}}
+=
+\mathbb{E}_{x \sim \pi_\theta}
+\sum_{t=1}^{T}
+w_{\text{ctrl}}(x_t)
+\cdot
+\ell_t,
+\end{equation}
+
+where:
+\begin{equation}
+w_{\text{ctrl}}(v) =
+\begin{cases}
+\lambda, & v \in \mathcal{S}_{\text{ctrl}} \\
+1, & \text{otherwise}.
+\end{cases}
+\end{equation}
+
+Comparing $\mathcal{L}_{\text{weighted}}$ and $\mathcal{L}_{\text{ctrl}}$ allows us to distinguish between general frequency effects and the specific impact of stumbling tokens.
+
+\section{Motivation and Core Insight}
+\input{motivation}
+
+\section{Definiton and detection of Recalcitrant Tokens}
+
+\input{rock}
+
+
+
+
+\section{Pillar Tokens: The Scaffolding of Fragile Reasoning}
+
+\input{pillar}
+
+
+\section{RQ3: Can harmful Rock Tokens be bypassed to improve OPD efficiency?}
+
+\input{stumbling}
+
+\section{Empirical Experiment}
+\subsection{off policy and on policy training}
+
+\paragraph{Training Details.} We distill from Qwen3-30B-A3B-Instruct-2507, a Mixture-of-Experts teacher with $\sim$30B total and $\sim$3B active parameters, into Qwen3-4B-Instruct-2507 as the student, using the KDFlow framework. Both models are run with thinking mode disabled (\texttt{enable\_thinking=False}). Training proceeds in two stages on a single node of $4\times$ H100 (80\,GB) GPUs with FSDP2, bf16, and gradient checkpointing.
+  
+\paragraph{Stage 1 -- Off-policy KD.} We first sample 20k teacher responses on math prompts drawn from OpenThoughts3 ($\text{temperature}=0.6$, $\text{top\_p}=0.95$, $\text{max\_new\_tokens}=16384$, $\text{TP}=2$ on $2\times$ H100). The student is then trained on these (prompt, teacher-response) pairs with a per-token KL distillation loss combined with cross-entropy at $\text{kd\_ratio}=0.5$ (vanilla KD, forward KL). We use AdamW with learning rate $2\times10^{-5}$, $5\%$ linear warmup, global batch size $128$ (micro-batch $1$), max sequence length $16384$, sample packing, and ring attention of size $2$, for $1$ epoch.
+
+\paragraph{Stage 2 -- On-policy KD.} Initialized from the Stage-1 checkpoint, the student generates $4$ rollouts per prompt ($\text{temperature}=1.0$, $\text{top\_p}=1.0$, $\text{generate\_max\_len}=8000$, $\text{prompt\_max\_len}=800$) on a separate 10k-prompt slice (positions 20k--30k of the same source), and is distilled toward the teacher's token distributions on those rollouts. We use vanilla KD with reverse KL at $\text{kd\_ratio}=1.0$ (pure distillation, no CE), learning rate $2\times10^{-6}$, $5\%$ linear warmup, gradient clipping at $1.0$, global batch size $4$ (micro-batch $1$), and $1$ epoch. The rollout engine uses $1$ engine with $\text{TP}=2$ and the teacher uses $\text{TP}=4$; both engines share GPUs with the trainer via offload-to-CPU sleep/wakeup (\texttt{teacher\_enable\_sleep=True}, \texttt{rollout\_enable\_sleep=True}.
+
+\paragraph{Defaults.} All other hyperparameters are KDFlow defaults; we did not tune optimizer betas, weight decay, dropout, or KD temperature (kept at $1.0$). The released 10k on-policy checkpoint is available at \href{https://huggingface.co/RockToken/qwen3-30b-a3b-to-4b-onpolicy-10k}{\texttt{RockToken/qwen3-30b-a3b-to-4b-onpolicy-10k}}.
+
+
+
+\section{Related Works}
+
+\input{related}
+
+
+\section{Conclusion}
+
+
+\section*{References}
+
+{
+\small
+\bibliographystyle{plain} 
+\bibliography{ref}
+}
+
+\medskip
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
+
+\section{Technical appendices and supplementary material}
+Technical appendices with additional results, figures, graphs, and proofs may be submitted with the paper submission before the full submission deadline (see above). You can upload a ZIP file for videos or code, but do not upload a separate PDF file for the appendix. There is no page limit for the technical appendices. 
+
+Note: Think of the appendix as ``optional reading'' for reviewers. The paper must be able to stand alone without the appendix; for example, adding critical experiments that support the main claims to an appendix is inappropriate. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\input{checklist.tex}
+
+
+\end{document}

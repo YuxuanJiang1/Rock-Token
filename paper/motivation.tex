@@ -1,0 +1,22 @@
+
+\subsection{High Loss Token Provide more Gradient for training}
+
+In OPD, high-loss tokens are expected to provide stronger learning signals because they reflect larger teacher–student mismatches. During training, most high-loss tokens gradually disappear as the student aligns with the teacher. However, we observe that a small subset of tokens remains persistently high-loss even after substantial training progress. We call these tokens rock tokens. Their persistence raises a key question: are these tokens still useful learning targets, or do they indicate a failure mode of OPD?
+
+
+\begin{takeaway}
+\textcolor{tabblue}{\textbf{Take-away}}~
+When training platuau, some rock token still remains high influence to training.
+\end{takeaway}
+
+\subsection{Positive or Negative? The gradient conflict}
+
+
+We first hypothesize that some rock tokens may be student-specific but reasoning-critical expressions. Although the teacher assigns them low probability, the student may rely on them as structural anchors for reasoning. We call these pillar tokens. However, our ablation analysis shows that many rock tokens have limited impact on reasoning performance, suggesting that they are not essential.
+
+This leads to a second hypothesis: some rock tokens are not pillars but stumbling tokens—persistent, high-loss, low-utility tokens that absorb OPD learning signal without improving reasoning. By suppressing these tokens from the beginning of training, we find that OPD converges faster, indicating that these tokens act as optimization bottlenecks rather than useful learning targets.
+
+\begin{takeaway}
+\textcolor{tabblue}{\textbf{Take-away}}~
+High-loss tokens initially provide strong learning signals in OPD, but a small subset persists despite training; these “rock tokens” may indicate either valuable signals or a fundamental failure mode.
+\end{takeaway}
