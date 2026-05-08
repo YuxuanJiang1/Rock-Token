@@ -36,9 +36,9 @@ NEW_RUNNER_DIR=${KD_ROOT}/new_runner
 # 例如：train_kd_on_policy_local.py / launch_local_opd.py / main.py
 
 
-STUDENT_MODEL=/p/work2/yuxuanj1/opd/models/Qwen3-4B-Instruct-2507
+STUDENT_MODEL=/p/work2/yuxuanj1/opd/models/Qwen3-4B-Instruct-2507-offpolicy
 TEACHER_MODEL=/p/work2/yuxuanj1/opd/models/Qwen3-30B-A3B
-TRAIN_DATA=/p/work2/yuxuanj1/opd/data/OpenThoughts3-1.2M/openthoughts_prompt_math_2k.jsonl
+TRAIN_DATA=/p/work2/yuxuanj1/opd/data/OpenThoughts3-1.2M/openthoughts_prompt_math_5k.jsonl
 SAVE_DIR=/p/work2/yuxuanj1/opd/KDFlow/output/qwen3_30b_a3b_to_4b_instruct_onpolicy_localopd
 
 mkdir -p ${SAVE_DIR}
