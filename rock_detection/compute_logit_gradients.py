@@ -33,7 +33,7 @@ from tqdm import tqdm
 
 STUDENT_MODELS = {
     "onpolicy":  "RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k",
-    "offpolicy": "RockToken/qwen3_30b_a3b_to_4b_offpolicy_math_first20k",
+    "offpolicy": "RockToken/qwen3_30b_a3b_to_4b_offpolicy_20k",
 }
 TEACHER_ID = "Qwen/Qwen3-30B-A3B-Instruct-2507"
 LOGIT_CHUNK_SIZE = 128  # positions per chunk during gradient computation
@@ -41,7 +41,7 @@ LOGIT_CHUNK_SIZE = 128  # positions per chunk during gradient computation
 parser = argparse.ArgumentParser()
 parser.add_argument("--student",  choices=list(STUDENT_MODELS), default="onpolicy")
 parser.add_argument("--samples",  type=int, default=500)
-parser.add_argument("--hardware", choices=["single_96gb", "dual_40gb"], default="single_96gb")
+parser.add_argument("--hardware", choices=["single_96gb", "dual_40gb", "quad_l40s"], default="single_96gb")
 parser.add_argument("--occurrences-file", required=True,
                     help="Existing rock_token_occurrences_*.pt file to reuse generated tokens from")
 parser.add_argument("--output-file", default=None)

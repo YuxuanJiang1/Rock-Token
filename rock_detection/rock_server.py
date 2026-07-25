@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 STUDENT_MODELS = {
     "onpolicy":  "RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k",
-    "offpolicy": "RockToken/qwen3_30b_a3b_to_4b_offpolicy_math_first20k",
+    "offpolicy": "RockToken/qwen3_30b_a3b_to_4b_offpolicy_20k",
 }
 TEACHER_ID = "Qwen/Qwen3-30B-A3B-Instruct-2507"
 DEFAULT_MAX_NEW_TOKENS = 256
@@ -29,9 +29,13 @@ parser.add_argument(
 )
 parser.add_argument(
     "--hardware",
-    choices=["single_96gb", "dual_40gb"],
+    choices=["single_96gb", "dual_40gb", "quad_l40s"],
     default="dual_40gb",
-    help="GPU memory layout (default: dual_40gb)",
+    help="GPU memory layout (default: dual_40gb). quad_l40s uses the same "
+         "device_map='auto' placement as dual_40gb -- it's an alias kept "
+         "distinct only so run logs correctly report the hardware in use; "
+         "'auto' already spreads the teacher across however many GPUs are "
+         "visible, so nothing else needs to change for 4x48GB L40S.",
 )
 parser.add_argument(
     "--unrestricted",
@@ -72,7 +76,6 @@ student_model = AutoModelForCausalLM.from_pretrained(
     STUDENT_ID,
     device_map="cuda:0",
     torch_dtype=torch.bfloat16,
-    cache_dir = "/workspace/hf_cache",
 )
 
 print("Loading teacher model (30B bf16)...")
@@ -82,11 +85,11 @@ if HARDWARE_CONFIG == "single_96gb":
         TEACHER_ID,
         device_map="cuda:0",
         torch_dtype=torch.bfloat16,
-        cache_dir = "/workspace/hf_cache",
     )
-elif HARDWARE_CONFIG == "dual_40gb":
-    # Student took ~8GB on GPU 0; teacher (~60GB) auto-fills remaining space on GPU 0
-    # and spills onto GPU 1. Roughly: ~32GB on GPU 0, ~28GB on GPU 1.
+elif HARDWARE_CONFIG in ("dual_40gb", "quad_l40s"):
+    # Student took ~8GB on GPU 0; teacher (~60GB bf16) auto-fills remaining space on
+    # GPU 0 and spills onto whichever other GPUs are visible (2 for dual_40gb, up to
+    # 4 for quad_l40s -- device_map="auto" balances across all of them either way).
     teacher_model = AutoModelForCausalLM.from_pretrained(
         TEACHER_ID,
         device_map="auto",
@@ -101,7 +104,7 @@ print(f"Student on: {student_device} | Teacher first layer on: {teacher_device}"
 
 # --- 2. Load Dataset ---
 print(f"Sampling {SAMPLE_SIZE} problems from MATH-500...")
-dataset = load_dataset("HuggingFaceH4/MATH-500", split="test", cache_dir = "/workspace/hf_cache",)
+dataset = load_dataset("HuggingFaceH4/MATH-500", split="test")
 sampled_dataset = dataset.shuffle(seed=42).select(range(SAMPLE_SIZE))
 
 # --- 3. Global Trackers ---

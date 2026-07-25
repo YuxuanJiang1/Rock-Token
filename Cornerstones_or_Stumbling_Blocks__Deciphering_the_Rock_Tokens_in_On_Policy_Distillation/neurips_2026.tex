@@ -1,0 +1,248 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+\PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2026
+
+% The authors should use one of these tracks.
+% Before accepting by the NeurIPS conference, select one of the options below.
+% 0. "default" for submission
+\usepackage{neurips_2026}
+
+
+% After being accepted, the authors should add "final" behind the track to compile a camera-ready version.
+% 1. Main Track
+ % \usepackage[main, final]{neurips_2026}
+% 2. Position Paper Track
+%  \usepackage[position, final]{neurips_2026}
+% 3. Evaluations & Datasets Track
+ % \usepackage[eandd, final]{neurips_2026}
+% 4. Creative AI Track
+%  \usepackage[creativeai, final]{neurips_2026}
+% 5. Workshop with single-blind reviewing
+%  \usepackage[sglblindworkshop, final]{neurips_2026}
+% 6. Workshop with double-blind reviewing
+%  \usepackage[dblblindworkshop, final]{neurips_2026}
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote.
+% For workshops (5., 6.), the authors should add the name of the workshop, "\workshoptitle" command is used to set the workshop title.
+% \workshoptitle{WORKSHOP TITLE}
+
+% "preprint" option is used for arXiv or other preprint submissions
+ % \usepackage[preprint]{neurips_2026}
+
+% to avoid loading the natbib package, add option nonatbib:
+%    \usepackage[nonatbib]{neurips_2026}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{amsmath}
+\usepackage{wrapfig}
+\usepackage{enumitem}
+
+
+\definecolor{tabblue}{HTML}{1F77B4}
+\definecolor{taborange}{HTML}{FF7F0E}
+\definecolor{tabgreen}{HTML}{2CA02C}
+\definecolor{tabred}{HTML}{D62728}
+\definecolor{tabpurple}{HTML}{9467BD}
+\definecolor{tabbrown}{HTML}{8C564B}
+\definecolor{tabpink}{HTML}{E377C2}
+\definecolor{tabgray}{HTML}{7F7F7F}
+\definecolor{tabolive}{HTML}{BCBD22}
+\definecolor{tabcyan}{HTML}{17BECF}
+
+\usepackage{rotating} 
+\usepackage[most]{tcolorbox}
+\newtcolorbox{takeaway}{
+  colback=blue!5,
+  colframe=blue!5,
+  width=1\textwidth,
+  boxrule=0pt,
+  left=5pt, right=5pt, top=3pt, bottom=3pt, % Halved padding
+  boxsep=0pt, % Removes default invisible boundary space
+  %fontupper=\small % Scales down from \normalsize
+}
+
+
+\title{Cornerstones or Stumbling Blocks? Deciphering the Rock Tokens in On-Policy Distillation}
+
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+
+\author{
+Yuxuan Jiang$^{1,*}$,
+Runchao Li$^{2,*}$,
+Shubhashis Roy Dipta$^{1,*}$,
+Dawei Li$^{3}$,
+Zhao Yang$^{4,\dagger}$\\
+$^{1}$UMBC \quad
+$^{2}$Case Western Reserve University \quad
+$^{3}$Arizona State University \quad
+$^{4}$VU Amsterdam\\
+$^{*}$Equal contribution \quad
+$^{\dagger}$Corresponding author
+}
+
+
+\begin{document}
+
+
+\maketitle
+
+
+\begin{abstract}
+
+
+% On-Policy Distillation (OPD) has emerged as a pivotal technique in the post-training of Large Language Models (LLMs), achieving precise and efficient alignment by providing token-level supervision on student-generated trajectories. Previous studies have shown that high-loss tokens are regarded as critical correction points where the student significantly deviates from the teacher, thereby driving the learning process. This view assumes that high-loss tokens should vanish with sufficient training; however, our empirical analysis shows otherwise. Even after OPD training reaches apparent saturation, a substantial subset of tokens continues to exhibit persistently high loss; these tokens, which we term \textbf{Rock Tokens}, can account for up to 50\% of the tokens in generated outputs. Our investigation reveals two startling paradoxes. First, despite their high occurrence frequency providing a disproportionately large share of total gradient norms, Rock Tokens themselves remain \textit{stagnant} throughout training, resisting teacher-driven corrections. Second, through causal intervention, we find that these tokens provide negligible functional contribution to the model's actual reasoning performance. These findings suggest that a vast amount of optimization bandwidth is spent on structural and discourse residuals that the student model cannot or need not internalize. By deconstructing these dynamics, we demonstrate that strategically bypassing these ``stumbling blocks'' can significantly streamline the alignment process, challenging the necessity of uniform token weighting and offering a more efficient paradigm for large-scale model distillation.
+
+While recent work in Reinforcement Learning with Verifiable Rewards (RLVR) has shown that a small subset of critical tokens disproportionately drives reasoning gains, an analogous token-level understanding of On-Policy Distillation (OPD) remains largely unexplored. In this work, we investigate high-loss tokens, a token type that—as the most direct signal of student-teacher mismatch under OPD's per-token KL objective—should progressively diminish as training converges according to existing studies; however, our empirical analysis shows otherwise. Even after OPD training reaches apparent saturation, a substantial subset of tokens continues to exhibit persistently high loss; these tokens, which we term Rock Tokens, can account for up to 50\% of the tokens in generated outputs. Our investigation reveals two startling paradoxes. First, despite their high occurrence frequency providing a disproportionately large share of total gradient norms, Rock Tokens themselves remain stagnant throughout training, resisting teacher-driven corrections. Second, through causal intervention, we find that these tokens provide negligible functional contribution to the model's actual reasoning performance. These findings suggest that a vast amount of optimization bandwidth is spent on structural and discourse residuals that the student model cannot or need not internalize. By deconstructing these dynamics, we demonstrate that strategically bypassing these "stumbling blocks" can significantly streamline the alignment process, challenging the necessity of uniform token weighting and offering a more efficient paradigm for large-scale model distillation.
+\end{abstract}
+
+
+
+
+
+
+\section{Introduction}
+\input{intro.tex}
+
+
+\section{Rock Tokens} 
+\label{ref:recalcitrant_tokens}
+
+\input{rock}
+
+
+
+
+
+
+
+
+\section{Pillar Tokens: The Scaffolding of Fragile Reasoning}
+
+\input{pillar_nex}
+
+
+\section{The genuine contribution of Rock Tokens} 
+\label{sec:rq3}
+
+\input{stumbling}
+
+\section{Experiment Setups}
+\label{setup}
+\subsection{Off-policy and On-policy Distillation}
+\label{sec:training_setup}
+
+We implement a two-stage distillation pipeline via the \textbf{KDFlow} framework~\cite{zhang2026kdflow} to transfer knowledge from a teacher, \textbf{Qwen3-30B-A3B-Instruct-2507} (MoE, 3B active), to a student, \textbf{Qwen3-4B-Instruct-2507}~\cite{qwen3technicalreport}, with thinking mode disabled for both. 
+\textbf{Stage 1 (Off-Policy):} To achieve initial \textit{all-vocabulary alignment}, the student is trained for one epoch on 20k teacher-generated solutions from \textbf{OpenThoughts3}~\cite{guha2025openthoughts} using a forward KL objective ($\text{kd\_ratio}=0.5$) with cross-entropy. 
+\textbf{Stage 2 (On-Policy):} Starting from the Stage 1 checkpoint, the student samples 4 rollouts each prompt from a separate 10k prompts as a checkpoint, (7 checkpoints in total)  and is trained for one epoch on its own trajectories using pure reverse KL ($\text{kd\_ratio}=1.0$). 
+Unless specified, all other hyperparameters follow KDFlow defaults; see Appendix~\ref{app:training_details} for full implementation details.
+\subsection{Evaluation}
+We employ the \textsc{lm-evaluation-harness} framework \cite{eval-harness} for standardized assessment across all benchmarks in a zero-shot setting. To ensure statistical robustness, we report the \textbf{Pass@1} accuracy averaged over five independent runs, accounting for variance in decoding.
+
+Our evaluation suite focuses on challenging competitive mathematics, comprising \textbf{AIME 24}, \textbf{AIME 25}, and \textbf{HMMT 25-Feb} from MathArena~\cite{dekoninck2026matharena}. Each benchmark contains 30 problems; we report the aggregated average score across these 90 tasks as the primary performance metric in our study. We extend our analysis to MATH-500~\cite{lightman2023letsverifystepstep} and IFEval~\cite{zhou2023instruction} to obtain a robust sample size for token-level statistical evaluation.
+
+
+\section{Related Works}
+
+\input{related}
+
+
+
+\section{Conclusion}
+This paper investigates the role of high-loss tokens in On-Policy Distillation, revealing that while they occupy a dominant position in the loss landscape, they are not the decisive factor for performance gains. Our analysis identifies a distinct category of persistent tokens, termed \textbf{Rock Tokens}, despite their significant gradient magnitude and apparent "effort" during optimization, Rock Tokens fail to provide constructive guidance for the model's reasoning capabilities. Notably, our intervention experiments demonstrate that applying a freeze-weighting to these tokens—thereby deprioritizing them during the optimization update—results in negligible impact on downstream performance while achieving a 1.7$\times$ increase in training wall-clock speed. These findings challenge the conventional wisdom that aligning every high-loss token is indispensable for learning. Instead, we advocate for a more resource-efficient, token-selective approach that bypasses the computational redundancy of low-utility tokens to optimize the efficiency-performance frontier in on-policy alignment.
+
+
+
+
+
+
+
+{
+\small
+\bibliographystyle{abbrvnat} 
+\bibliography{ref_raw}
+}
+
+\medskip
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
+
+\section{Limitations}
+First, our empirical evaluations rely predominantly on competitive mathematical reasoning; the functional role of Rock Tokens may differ in open-ended generation or coding tasks where structural boundaries are less rigid. Second, our experimental setup utilizes a specific 30B-to-4B distillation pairing, leaving the persistence and geometry of these tokens across different architectural families or vastly larger scales an open question. Finally, to isolate the functional impact of Stumbling Blocks, our mitigation strategy employs a strict binary gradient-freeze mask. While effective for demonstrating causal necessity, this approach is a blunt instrument; future work should explore dynamic reweighting schemes or soft-penalties that gracefully adapt to token-level loss trajectories throughout the optimization process.
+\subsection{Ethics Discussion and Risk Assessment}
+
+This work studies model distillation and training dynamics, and does not introduce a deployed system, human-subject data, or sensitive personal data. Its direct societal risks are therefore limited. However, because improvements in language model training may be used in both beneficial and harmful downstream applications, we acknowledge potential dual-use risks, including misuse for generating low-quality or misleading content.
+
+We mitigate these risks by limiting the paper to research analysis and experimental evaluation. Any released code, models, or processed artifacts will be accompanied by appropriate documentation, intended-use information, and license details. All pretrained models, datasets, and software frameworks used in this work are credited, and their licenses and terms of use are respected.
+
+\section{Analysis on Rock Tokens}
+\label{analysis_rock}
+ We decode the top-$K{=}100$ rock tokens and their frequency-matched controls $\mathcal{S}_{\text{ctrl}}$ into their string forms using the public Qwen3 tokenizer. Despite being identified by a purely numerical criterion ($R(v)$), the resulting set is functionally coherent: rock tokens fall into a small number of identifiable categories, all of which mark structural or discourse boundaries in mathematical reasoning output.
+
+Four functional clusters dominate $\mathcal{R}$.
+\begin{enumerate}
+\item \textbf{LaTeX and math delimiters} — \$', \verb|\\|, \verb|$$|, \verb|=|, \verb|^|, \verb|{|, \verb|}|, \verb|frac|, \verb|(|, \verb|)|. These mark transitions into and out of math mode and operate at the syntactic boundary between prose and formula.   \item \textbf{Markdown and whitespace structure} — **', \textbackslash n', \textbackslash n\textbackslash n', :\textbackslash n\textbackslash n', ---\textbackslash n\textbackslash n', \#\#\#'. These delimit logical units (paragraphs, section headers, bold spans).   \item \textbf{Discourse markers at sentence-initial position} — So', Let', We', But', Now', Wait', Then', Since', This'. These open new reasoning steps and signal turns in the chain of thought.
+\item \textbf{Digits} — every digit 0' through 9' appears in $\mathcal{R}$, each with frequency in the thousands and a non-trivial mean per-token KL. These are tokens that punctuate quantitative statements.
+\end{enumerate}
+
+Contrast with the frequency-matched control set. The control set $\mathcal{S}_{\text{ctrl}}$, sampled at the same frequency distribution, is qualitatively different: it consists predominantly of content-bearing tokens used at non-boundary positions — common nouns and verbs of mathematical discourse (e.g.\ triangle', equation', region', expression', must', find', check'), prepositions and conjunctions used mid-clause (as', between', first', right'), and single-letter variable tokens (a', b', i', f', y'). The frequency-matching procedure thus isolates the relevant axis: rocks and controls share the quantity of supervision they receive during OPD, but differ sharply in their syntactic role.
+
+\textbf{Interpretation} The clustering of $\mathcal{R}$ at structural boundaries indicates that the residual student–teacher divergence after on-policy distillation is concentrated at the points where the model decides \emph{how to structure} its reasoning output, rather than \emph{what content} to emit. Decisions like open math mode'', begin a new paragraph'', insert a section header'', or start a new reasoning step with So' versus Then','' are precisely the positions where the OPD loss persists, even after extensive distillation. This observation suggests that rock tokens are not arbitrary statistical outliers but a consistent signature of the on-policy distillation regime: they identify the structural/discourse decisions that the student systematically fails to align with the teacher.
+\section{Training and Evaluation Details}
+\label{app:training_details}
+\subsection{off policy and on policy training}
+
+\paragraph{Training Details.} We distill from Qwen3-30B-A3B-Instruct-2507, a Mixture-of-Experts teacher with $\sim$30B total and $\sim$3B active parameters, into Qwen3-4B-Instruct-2507 as the student, using the KDFlow framework. Both models are run with thinking mode disabled (\texttt{enable\_thinking=False}). Training proceeds in two stages on a single node of $4\times$ H100 (80\,GB) GPUs with FSDP2, bf16, and gradient checkpointing.
+  
+\paragraph{Stage 1 -- Off-policy KD.} We first sample 20k teacher responses on math prompts drawn from OpenThoughts3 ($\text{temperature}=0.6$, $\text{top\_p}=0.95$, $\text{max\_new\_tokens}=16384$, $\text{TP}=2$ on $2\times$ H100). The student is then trained on these (prompt, teacher-response) pairs with a per-token KL distillation loss combined with cross-entropy at $\text{kd\_ratio}=0.5$ (vanilla KD, forward KL). We use AdamW with learning rate $2\times10^{-5}$, $5\%$ linear warmup, global batch size $128$ (micro-batch $1$), max sequence length $16384$, sample packing, and ring attention of size $2$, for $1$ epoch.
+
+\paragraph{Stage 2 -- On-policy KD.} Initialized from the Stage-1 checkpoint, the student generates $4$ rollouts per prompt ($\text{temperature}=1.0$, $\text{top\_p}=1.0$, $\text{generate\_max\_len}=8000$, $\text{prompt\_max\_len}=800$) on a separate 10k-prompt slice (positions 20k--30k of the same source), and is distilled toward the teacher's token distributions on those rollouts. We use vanilla KD with reverse KL at $\text{kd\_ratio}=1.0$ (pure distillation, no CE), learning rate $2\times10^{-6}$, $5\%$ linear warmup, gradient clipping at $1.0$, global batch size $4$ (micro-batch $1$), and $1$ epoch. The rollout engine uses $1$ engine with $\text{TP}=2$ and the teacher uses $\text{TP}=4$; both engines share GPUs with the trainer via offload-to-CPU sleep/wakeup (\texttt{teacher\_enable\_sleep=True}, \texttt{rollout\_enable\_sleep=True}.
+
+\paragraph{Defaults.} All other hyperparameters are KDFlow defaults; we did not tune optimizer betas, weight decay, dropout, or KD temperature (kept at $1.0$).
+
+
+\section{Pillar Correlation and Multiple-Testing Analysis}
+\input{pillar_apps}
+
+\input{pillar}
+
+\section{Selection of Ratio}
+\label{app:rock_ratio}
+Choosing the selection size. The score $R(v)$ provides a ranking; we still need a cutoff $K$ that determines $|\mathcal{R}|$. Two competing criteria bear on this choice. First, $K$ should be small enough that the top-$K$ set is stable — i.e., reproducible across resamplings of the rollout corpus. Second, $K$ should be large enough that $\mathcal{R}$ accounts for a substantial fraction of the corpus-level KL, so that reweighting decisions made on $\mathcal{R}$ have meaningful effect on $\mathcal{L}_{\text{OPD}}$.
+
+\textbf{Procedure} We sweep $K$ jointly with sample size. For each $n \in {50, 100, 200, 300, 400}$, we compute $\widehat R(v)$ from the corresponding sub-corpus and select its top-$K$ tokens; we then measure the Jaccard index of this set against the top-$K$ obtained at $n = 500$. We additionally compute the cumulative coverage $\sum_{v \in \mathcal{R}} \widehat R(v) / \mathcal{L}_{\text{OPD}}^{\text{corpus}}$ at $n = 500$ as $K$ grows.
+
+
+\textbf{Results} Figure~\ref{fig:rock-id}(b) plots Jaccard against $K$, with one curve per $n$ and an averaged curve. Average Jaccard exceeds $0.70$ for $K \leq 100$ and decays toward a $\approx 0.57$ floor for $K \geq 150$ — beyond which the additional tokens are no longer reliably reproduced across sub-corpora. Figure~\ref{fig:rock-id}(c) overlays the corresponding coverage curve: at $K = 100$, $\mathcal{R}$ accounts for $\approx 60\%$ of the corpus-level KL while remaining within the stable regime. We therefore set $K = 100$ ($\approx 2.5\%$ of the observed vocabulary) as the \emph{definitional} Rock-Token set $\mathcal{R}$ used wherever a stable, reproducible vocabulary is required --- the qualitative cluster analysis below, and the training-time interventions of Section~\ref{sec:rq3}. This choice represents an explicit tradeoff: $K = 50$ would yield modestly higher stability ($J \approx 0.81$) but reduce coverage to $\approx 49\%$. For the per-token causal analysis of Appendix~\ref{sec:pillar-experiments} we instead \emph{screen} a strict superset of size $K_{\text{screen}}=200$: that section's bootstrap is a search for individual rare-but-real Pillars, and the broader candidate pool both increases the chance of detection and lets us probe the regime in which selection stability has decayed below $J\!\approx\!0.6$. The two cutoffs serve different purposes --- the smaller $K$ defines $\mathcal{R}$, the larger one widens the screening window --- and we are explicit in Appendix~\ref{sec:pillar-identification} about which is in force.
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\input{checklist.tex}
+
+
+\end{document}

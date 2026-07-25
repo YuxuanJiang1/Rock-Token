@@ -1,0 +1,103 @@
+﻿Rock Token Rebuttal
+Reviewer tq1G
+
+
+
+
+Summary:
+The paper studies the token-level dynamics of On-Policy Distillation (OPD) and identifies Rock Tokens, which are a small set of high-frequency token types (ranked by a "Rock Score" combining mean per-token KL and frequency) whose distillation loss stays persistently high even after training appears to converge. The authors make three observations. First, these tokens are mostly structural/discourse scaffolding (delimiters, whitespace, discourse markers, digits), dominate the output, and exhibit a "gradient paradox": their gradients align with the global descent direction yet their loss barely moves during training. Second, an inference-time knockout test finds that only a tiny fraction are causally necessary, and that this causal importance is uncorrelated with standard entropy/frequency/KL signals. Third, a selective intervention that freezes Rock-Token gradients during OPD reportedly preserves reasoning accuracy while giving a ~1.7× wall-clock speedup, whereas freezing a frequency-matched random set degrades sharply. The experiments use a single Qwen3-30B→4B OPD setup, with token-level statistics on MATH-500/IFEval and reasoning evaluation on AIME24/25 and HMMT25.
+Contribution Type: General: Most submissions will fall into this type.
+Strengths And Weaknesses:
+Strengths:
+1. The token-level lens on OPD is well-motivated and, to my knowledge, under-explored relative to the analogous RLVR "forking-token" literature, which the paper positions itself against cleanly.
+2. The paper writing is clear and easy to follow. The take-away box is particular clear.
+3. The empirical study offers an in-depth and comprehensive analysis of the token perspective in OPD, further investigating its correlation with performance outcomes.
+Weakness:
+1. It would be beneficial for the authors to explore other base model configurations to determine whether the Rock token phenomenon extends beyond the current setup. Such validation is important for demonstrating the robustness of the results.
+Quality: 3: good
+Clarity: 3: good
+Significance: 3: good
+Originality: 3: good
+Questions:
+Please see my above weakness and consider adding more results
+Limitations:
+yes
+Rating: 5: Accept: Technically solid paper, with high potential value on at least one sub-area of AI or moderate-to-high impact on more than one area of AI, with good-to-excellent evaluation, resources, reproducibility, and no unaddressed ethical considerations.
+
+
+
+
+Reviewer K8Wc
+Official Reviewby Reviewer K8Wc25 Jun 2026, 14:56 (modified: 23 Jul 2026, 11:03)Program Chairs, Senior Area Chairs, Area Chairs, Reviewers Submitted, Authors, Reviewer K8WcRevisions
+Summary:
+The paper studies why some tokens keep a large teacher–student reverse-KL loss. It groups positions by the token generated at that position, then ranks token types using a frequency-weighted residual-loss score, calling the highest-ranked ones “Rock Tokens.” The paper then studies their gradient behavior, removes individual tokens during inference to understand if they are load-bearing, and masks their distillation loss during training. The main finding is that most Rock Tokens have little measurable effect on benchmark accuracy when removed, while skipping their direct loss terms preserves most reasoning performance.
+Contribution Type: General: Most submissions will fall into this type.
+Strengths And Weaknesses:
+Strengths:
+1. The Rock Score is simple and interpretable, and the paper is solid in analysis: it includes a stability analysis, gradient analysis, inference-time interventions, and a training-time intervention.
+2. The topic could be significant because a reliable way to skip low-value distillation work would reduce the cost of LLM post-training.
+Weakness:
+1. The experimental scope is narrow: one teacher–student pair from the same family, and mostly mathematical reasoning data. Conduct more ablations on models will be useful.[a]
+2. Rock Tokens are selected because they have high loss at the final checkpoint and are then used to argue that high loss persists at the final checkpoint. In addition, early and late losses appear to be evaluated on each checkpoint’s own on-policy trajectories, so changes in the context distribution are mixed with actual changes in student–teacher alignment. A cleaner analysis would select tokens using one split or an early pilot run and evaluate their persistence using independent, fixed contexts.
+Quality: 3: good
+Clarity: 3: good
+Significance: 2: not good
+Originality: 3: good
+Questions:
+1. The study uses one Qwen teacher–student pair. Could the author add more model ablations to test the robustness of results?
+2. Could the authors separate the process of selecting Rock Tokens from the process of evaluating their persistence? Right now, it seems that Rock Tokens are selected using high loss at the final checkpoint, and then the paper uses early-vs-late loss comparisons to state these tokens stay high-loss during training.
+3. What a Rock Token represents mathematically and what the intervention actually removes?[b]
+Limitations:
+yes
+Rating: 4: Borderline accept: Technically solid paper where reasons to accept outweigh reasons to reject, e.g., limited evaluation. Please use sparingly.
+
+
+
+
+Reviewer RNAB
+Official Reviewby Reviewer RNAB24 Jun 2026, 00:07 (modified: 23 Jul 2026, 11:03)Program Chairs, Senior Area Chairs, Area Chairs, Reviewers Submitted, Authors, Reviewer RNABRevisions
+Summary:
+This paper studies token-level behavior in OPD for LLMs. It focuses on a subset of frequent, persistently high-loss tokens that called Rock Tokens. It then proposes a Rock Score to identify such tokens, explores their gradient geometry and persistence during training, probes their inference-time importance via token knockout, and tests a selective distillation variant that freezes gradients for Rock Tokens. Experiments show that Rock Tokens consume a large fraction of OPD optimization bandwidth, are mostly not causally important for reasoning, and that freezing them can substantially speed training with only modest performance loss.
+Contribution Type: General: Most submissions will fall into this type.
+Strengths And Weaknesses:
+Strengths:
+(S1) The paper targets a timely question of whether all tokens contribute equally during OPD. It structures the study cleanly around three sub-questions: what Rock Tokens are, why they persist, and whether they matter for training. The observation is insightful, where many persistently high-loss tokens are structural/discourse tokens rather than content-bearing reasoning tokens. The three-stage framing makes the paper easy to follow at a high level, even where I disagree with specific technical choices or causal interpretations.
+(S2) I appreciate the analysis and figures provided in the manuscript. They justify the selection through frequency-loss tradeoffs (2a), sequence-level density (2b), cumulative coverage vs. stability (2c), and Jaccard robustness under subsampling (2d). The coverage-stability trade-offs in 2c gives a concrete rationale for K=100, and 2d shows the selection isn't wildly unstable. The gradient analysis in Fig. 3 also adds insight. Panel (3a) shows Rock Tokens have far smaller per-occurrence gradient magnitudes than rare high-KL tokens, while (3b) reveals their gradients are still directionally aligned with a balanced global descent direction. Panels (3c–d) reinforce the persistence claim convincingly, with Rock Tokens hugging the diagonal and ΔKL concentrated at zero.
+(S3) The selective-freezing intervention in Fig. 5 is simple and could be potentially useful. Based on my understanding, If the phenomenon proves robust, this kind of token-level reweighting could matter for large-scale post-training efficiency.
+Weaknesses:
+(W1) Eq. 1 defines the OPD objective as a per-position reverse KL. Immediately after,  is defined as a sampled log-ratio, which is not the KL itself but a term whose expectation under the student policy equals the reverse KL. The manuscript then speaks as though  is the KL, and Eq. 2 claims the Rock Score gives the exact contribution of a token type to the OPD objective. But conditioning on the realized token  is different depending on whether we are working with the full per-position KL or a Monte Carlo surrogate. It determines whether Rock Tokens are defined with respect to the true objective, a sampled estimator, or a context-conditioned statistic.[c]
+(W2) The loss is written as  and then states this is the unique additive ranking that strictly agrees with the OPD objective. This is a very strong statement. IMHO, this depends critically on what  means, like is it empirical frequency or expected token probability mass or expected count over trajectories? Also, whether the conditioning aligns with the same sampling process that defines the OPD objective. None of this is explained in the manuscript.[d]
+(W3) In Sec. 3.2, the knockout policy sets a token's logit to  at every decoding step. However, based on my understanding, a global token ban does not isolate a token's causal contribution in any local sense. It changes the entire decoding space and can trigger large shifts in the trajectory, especially for formatting and discourse markers, where substitution effects are strong. So when Fig. 4 shows most candidates are Neutral, the supported conclusion is that globally banning these tokens often doesn't hurt benchmark accuracy under this protocol. This is not the same as establishing that these tokens have negligible functional contribution to reasoning, or that they are merely stylistic residuals. I recommend the authors further clarify this in the rebuttal.[e]
+(W4) Fig. 5 compares Original OPD, Random freeze, and Rock freeze. Random freeze that includes semantically useful tokens is almost designed to look bad. IMHO, to conclude that the Rock Token identification specifically drives the efficiency gains, it would be helpful to conduct ablations like freezing top-frequency tokens, freezing top-mean-loss tokens without the Rock Score construction, soft downweighting , or freezing tokens selected by gradient magnitude/alignment.
+(W5) The experiments are conducted on Qwen3-30B-A3B → Qwen3-4B, OpenThoughts data, and math reasoning benchmarks. IFEval appears only in the knockout analysis and training conclusions are math-only. To my knowledge, since the identified Rock Tokens are largely formatting and discourse tokens, domain dependence could be a real concern. Intuitively, code, dialogue, tool use, and open-ended generation likely have different structural-token dynamics. This is acknowledged in limitations, but text above should also state this clearly.[f]
+Quality: 2: not good
+Clarity: 3: good
+Significance: 2: not good
+Originality: 3: good
+Questions:
+* Please clarify the relationship between Eq. 1, the sampled loss , and the Rock Score decomposition in Eq. 2. I am a bit confused about the per-position reverse KL with a point-evaluated log-ratio at the sampled token. It would be great to see what objective is optimized in practice, whether  is exact for the true objective or only for the sampled surrogate, and what  denotes mathematically (empirical count, expected probability mass, or something else).
+* The frequency-matched random baseline is a bit too weak. It includes semantically useful tokens and is almost designed to underperform. The most important missing comparisons are top-frequency freeze, top-mean-loss freeze without the Rock Score construction, and soft down-weighting with intermediate . Additionally, Fig. 5 shows no error bars despite the paper stating accuracy is averaged over five runs, and the evaluation covers only 90 problems total across AIME24/25 and HMMT25. At that sample size, the visual gap between "Ours" and "Original OPD" could plausibly be within noise. I look forward to the authors’ response on this.
+I would be glad to raise my rating if thoughtful responses are presented.
+Limitations:
+Yes
+Rating: 3: Borderline reject: Technically solid paper where reasons to reject, e.g., limited evaluation, outweigh reasons to accept, e.g., good evaluation. Please use sparingly.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[a]@yuxuanj1@umbc.edu do we have time to add more models, specifically from different family like llama?
+[b]@sroydip1@umbc.edu
+[c]@sroydip1@umbc.edu @runchaoli1@gmail.com any thoughts?
+[d]@runchaoli1@gmail.com
+[e]@sroydip1@umbc.edu
+[f]I'm working on this
