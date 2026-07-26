@@ -56,44 +56,60 @@ if [ ! -f "rock_vs_control.csv" ]; then
   fi
 fi
 
+# Resumable: each step is skipped if its output already exists on disk, so a
+# re-run after a downstream failure (e.g. step 3's bug, now fixed) doesn't waste
+# hours redoing step 1's generation. Set FORCE_RERUN=1 to redo everything anyway.
+FORCE_RERUN=${FORCE_RERUN:-0}
+
+OCC_FILE="rock_token_occurrences_onpolicy_n${SAMPLES}_unrestricted.pt"
+ROCK_CSV="rock_vs_control_unrestricted.csv"
+GRAD_FILE="logit_gradients_onpolicy_n${SAMPLES}_unrestricted.pt"
+
 # =========================
 # 1. Collect per-token KL statistics (student generation + teacher scoring)
 # =========================
-python rock_server.py \
-  --student onpolicy \
-  --samples ${SAMPLES} \
-  --hardware quad_l40s \
-  --unrestricted
+if [ "${FORCE_RERUN}" = "1" ] || [ ! -f "${OCC_FILE}" ]; then
+  python rock_server.py \
+    --student onpolicy \
+    --samples ${SAMPLES} \
+    --hardware quad_l40s \
+    --unrestricted
 
-OCC_FILE="rock_token_occurrences_onpolicy_n${SAMPLES}_unrestricted.pt"
-
-if [ ! -f "${OCC_FILE}" ]; then
-  echo "ERROR: expected ${OCC_FILE} to exist after rock_server.py -- check the run log above." >&2
-  exit 1
+  if [ ! -f "${OCC_FILE}" ]; then
+    echo "ERROR: expected ${OCC_FILE} to exist after rock_server.py -- check the run log above." >&2
+    exit 1
+  fi
+else
+  echo "Skipping step 1 -- ${OCC_FILE} already exists. (FORCE_RERUN=1 to redo.)"
 fi
 
 # =========================
 # 2. Re-select rocks/controls on the fresh data -> rock_vs_control_unrestricted.csv
 #    (also produces a funnel plot + per-output distribution CSV as side effects)
 # =========================
-python rerun_unrestricted.py
+if [ "${FORCE_RERUN}" = "1" ] || [ ! -f "${ROCK_CSV}" ]; then
+  python rerun_unrestricted.py
 
-ROCK_CSV="rock_vs_control_unrestricted.csv"
-if [ ! -f "${ROCK_CSV}" ]; then
-  echo "ERROR: expected ${ROCK_CSV} to exist after rerun_unrestricted.py -- check the run log above." >&2
-  exit 1
+  if [ ! -f "${ROCK_CSV}" ]; then
+    echo "ERROR: expected ${ROCK_CSV} to exist after rerun_unrestricted.py -- check the run log above." >&2
+    exit 1
+  fi
+else
+  echo "Skipping step 2 -- ${ROCK_CSV} already exists. (FORCE_RERUN=1 to redo.)"
 fi
 
 # =========================
 # 3. Per-token gradient directions (forward-only, reuses tokens from step 1)
 # =========================
-python compute_logit_gradients.py \
-  --student onpolicy \
-  --samples ${SAMPLES} \
-  --hardware quad_l40s \
-  --occurrences-file "${OCC_FILE}"
-
-GRAD_FILE="logit_gradients_onpolicy_n${SAMPLES}_unrestricted.pt"
+if [ "${FORCE_RERUN}" = "1" ] || [ ! -f "${GRAD_FILE}" ]; then
+  python compute_logit_gradients.py \
+    --student onpolicy \
+    --samples ${SAMPLES} \
+    --hardware quad_l40s \
+    --occurrences-file "${OCC_FILE}"
+else
+  echo "Skipping step 3 -- ${GRAD_FILE} already exists. (FORCE_RERUN=1 to redo.)"
+fi
 
 echo "==== DONE ===="
 echo "Occurrences: ${OCC_FILE}"

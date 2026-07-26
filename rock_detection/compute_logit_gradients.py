@@ -77,13 +77,19 @@ print(f"  {n_seen:,} unique tokens seen — pre-allocating gradient storage")
 # ---------------------------------------------------------------------------
 print(f"Loading tokenizer {STUDENT_ID} ...")
 tokenizer = AutoTokenizer.from_pretrained(STUDENT_ID)
-V = len(tokenizer)
-print(f"  vocab size: {V}")
 
 print("Loading student model (4B bf16)...")
 student_model = AutoModelForCausalLM.from_pretrained(
     STUDENT_ID, device_map="cuda:0", torch_dtype=torch.bfloat16,
 )
+# Use the model's actual output vocab size, not len(tokenizer): Qwen3's lm_head is
+# padded to a rounder dimension (e.g. 151936) than the tokenizer's real vocab
+# (151669) for hardware efficiency. Gradient tensors are dense over the full logit
+# dimension, so they must match config.vocab_size -- using len(tokenizer) caused an
+# index_add_ shape mismatch (self [n_seen, 151669] vs source [chunk, 151936]) as
+# soon as real model logits were accumulated into gradient_sum/G_global below.
+V = student_model.config.vocab_size
+print(f"  tokenizer vocab: {len(tokenizer)}  |  model output vocab (V): {V}")
 
 print("Loading teacher model (30B bf16)...")
 if args.hardware == "single_96gb":
