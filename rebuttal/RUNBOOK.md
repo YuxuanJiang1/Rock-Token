@@ -152,24 +152,47 @@ Still to edit, in **each** of `run_stumb_top_freq.sh`, `run_stumb_top_meanloss.s
 If you're running on the *same* cluster/account the original `run_stumb_random.sh` ran on, most
 of these may already be correct — just confirm rather than blindly editing.
 
+**Status: done.** All 5 scripts are filled in as of this session:
+- `KD_ROOT=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token/stumbling`
+- `PYTHON=`/`RAY=` both `.../Rock-Token/.venv/bin/{python,ray}` (confirmed same venv, `ray 2.56.1`,
+  `torch 2.10.0+cu128`, `sglang` and `kdflow` both import cleanly)
+- `STUDENT_MODEL=Qwen/Qwen3-4B-Instruct-2507`, `TEACHER_MODEL=Qwen/Qwen3-30B-A3B-Instruct-2507` (HF
+  hub ids — no local copies needed)
+- `SAVE_DIR=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token-checkpoints/<name>` (sibling to
+  the repo checkout, outside git)
+
+Ready for step 4.
+
 ## 4. Make executable and run
 
+**All 7 runs in one go**: `run_all_ablations.sh` chains all 5 scripts (7 invocations counting the
+3 soft-λ values) in the recommended order — `top_meanloss` first (closest to the reviewer's core
+ask), then `top_freq`, `gradmag`, `gradalign`, then soft-λ at 0.3/0.5/0.7. Each run's full output
+goes to `logs/<name>.log`, and a `logs/<name>.done` marker gets written on success — re-running the
+script skips anything already done, so an interrupted multi-day job resumes cleanly
+(`FORCE_RERUN=1` to redo everything; `CONTINUE_ON_ERROR=1` to keep going past a failed run instead
+of stopping). This is long-running — launch it inside `tmux`/`screen` so it survives an SSH
+disconnect:
 ```bash
-chmod +x run_stumb_*.sh
-./run_stumb_top_freq.sh       2>&1 | tee top_freq.log
+chmod +x run_all_ablations.sh
+tmux new -s w4_ablations
+./run_all_ablations.sh
+# detach: Ctrl-b d -- reattach later with: tmux attach -t w4_ablations
 ```
 
-Run these **sequentially, not in parallel** — each wants all 4 GPUs. Order doesn't matter; I'd
-suggest `top_meanloss` first since it's the one closest to what the reviewer explicitly asked for
-("top-mean-loss freeze without the Rock Score construction"), so you get the most decision-relevant
-result first if time runs short.
-
-For the soft-λ sweep:
+**Or run them individually** for more manual control (e.g. to watch one closely, or run out of
+order):
 ```bash
+chmod +x run_stumb_*.sh
+./run_stumb_top_meanloss.sh 2>&1 | tee top_meanloss.log
+./run_stumb_top_freq.sh     2>&1 | tee top_freq.log
+./run_stumb_gradmag.sh      2>&1 | tee gradmag.log
+./run_stumb_gradalign.sh    2>&1 | tee gradalign.log
 ./run_stumb_soft_lambda.sh 0.3 2>&1 | tee soft_03.log
 ./run_stumb_soft_lambda.sh 0.5 2>&1 | tee soft_05.log
 ./run_stumb_soft_lambda.sh 0.7 2>&1 | tee soft_07.log
 ```
+Run **sequentially, not in parallel** either way — each wants both GPUs.
 
 ## 5. While it's running, watch for
 

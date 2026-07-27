@@ -34,8 +34,8 @@ set -x
 # regardless of what cwd this was launched from.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-PYTHON=/home/xxj1/.conda/envs/qwen/bin/python
-RAY=/home/xxj1/.conda/envs/qwen/bin/ray
+PYTHON=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token/.venv/bin/python
+RAY=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token/.venv/bin/ray
 
 export CUDA_HOME=/usr/local/cuda-12.8
 export PATH=$CUDA_HOME/bin:$PATH
@@ -64,10 +64,10 @@ echo "CUDA_HOME=$CUDA_HOME"
 KD_ROOT=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token/stumbling
 NEW_RUNNER_DIR=${KD_ROOT}/new_runner
 
-STUDENT_MODEL=/p/work2/xxj1/opd/models/Qwen3-4B-Instruct-2507
-TEACHER_MODEL=/p/work2/xxj1/opd/models/Qwen3-30B-A3B
+STUDENT_MODEL=Qwen/Qwen3-4B-Instruct-2507
+TEACHER_MODEL=Qwen/Qwen3-30B-A3B-Instruct-2507
 TRAIN_DATA=RockToken/openthoughts_prompt_math_5k_src30k-35k
-SAVE_DIR=/p/work2/xxj1/rocktoken/stumb/top_freq
+SAVE_DIR=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token-checkpoints/top_freq
 
 mkdir -p ${SAVE_DIR}
 
