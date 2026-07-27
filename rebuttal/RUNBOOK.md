@@ -1,8 +1,23 @@
-# W4 ablations — run order (4x L40S)
+# W4 ablations — run order (currently 2x L40S)
 
 The launch scripts have several placeholders copied from `run_stumb_random.sh`'s original
 HPC account (`xxj1`) — they will fail immediately (blank `KD_ROOT`, someone else's conda env,
 someone else's model/data paths) until you fill in your own. Steps below in order.
+
+**GPU count**: went 4 → 3 → 2 as availability changed; currently set for 2x L40S.
+`num_gpus_per_node=2`, `teacher_tp_size=2` — this is now the *same* GPU topology as the original
+(H100) `run_stumb_random.sh`, just on smaller-memory cards (48GB vs. 80GB) with FP8 added for the
+teacher to compensate. `teacher_tp_size=2` was chosen (not 3, back when 3 GPUs were available) because
+the teacher's actual `config.json` has `num_key_value_heads=4` and `num_attention_heads=32`, and
+SGLang's tensor-parallel attention needs the TP degree to divide the KV-head count — 2 always
+works, 3 doesn't. At 2 GPUs this is moot (TP=2 uses the whole pool), but matters if GPU count
+changes again. `teacher_quantization fp8` now does real load-bearing work, not just added margin:
+2x48=96GB total pool vs. the original 2x80=160GB. Bonus: with 2 GPUs, `train_batch_size=4` divides
+evenly again (`4 // 2 = 2` grad-accum steps → effective batch of exactly 4) — the 3-GPU
+config this replaced had a silent effective-batch-of-3 side effect from integer division that no
+longer applies. If more GPUs free up later: 3 needs `teacher_tp_size` to stay at 2 (not 3, for the
+divisibility reason above) with `num_gpus_per_node=3`; 4 can go back to `teacher_tp_size=4`
+(32/4=8, 4/4=1, both clean) with `num_gpus_per_node=4`.
 
 ## 0. Environment
 
@@ -111,16 +126,27 @@ for the soft-λ script) — no edit needed there as long as `build_ablation_free
 with its defaults (writes to `stumbling/ablation_lists/`) and `rock.json` stays where it already is
 in `stumbling/`.
 
+`TRAIN_DATA` is also resolved: the original `openthoughts_prompt_math_10k.jsonl` (10k prompts,
+positions 20k–30k of OpenThoughts3) is a local file on the original `xxj1` account and isn't on the
+`RockToken` HF org. Rather than chase it down, all 5 scripts now point at
+`RockToken/openthoughts_prompt_math_5k_src30k-35k` instead — a public 5k-prompt slice (different
+exact prompts, confirmed same schema: `prompt_messages` column, ShareGPT-format nested
+`from`/`value`, matches `--input_key prompt_messages`). `kdflow`'s dataset loader falls through to
+plain `datasets.load_dataset()` for anything that isn't a local file/directory, so the HF hub id
+works directly — no download step needed. This is fine because all 5 new ablations use the *same*
+file, so they stay comparable to each other, which is what the W4 comparison actually needs; it
+just means don't directly compare wall-clock/loss curves against the original Random/Rock-Freeze
+runs (different data) without caveating that.
+
 Still to edit, in **each** of `run_stumb_top_freq.sh`, `run_stumb_top_meanloss.sh`,
 `run_stumb_gradmag.sh`, `run_stumb_gradalign.sh`, `run_stumb_soft_lambda.sh`:
 
 | Variable | Currently | Set to |
 |---|---|---|
-| `KD_ROOT` | *(blank)* | path to your `stumbling/` checkout (so `new_runner` and `kdflow` are importable) |
-| `PYTHON` / `RAY` | `/home/xxj1/.conda/envs/qwen/bin/{python,ray}` | your own conda/venv's `python`/`ray` |
+| `KD_ROOT` | *(blank)* | path to your `stumbling/` checkout (so `new_runner` and `kdflow` are importable) — run `pwd` from inside it |
+| `PYTHON` / `RAY` | `/home/xxj1/.conda/envs/qwen/bin/{python,ray}` | your own conda/venv's `python`/`ray` — run `which python` / `which ray` in the env with `kdflow` installed |
 | `STUDENT_MODEL` | `/p/work2/xxj1/opd/models/Qwen3-4B-Instruct-2507` | your local copy, or just `Qwen/Qwen3-4B-Instruct-2507` (HF hub id — `--student_name_or_path` accepts either) |
 | `TEACHER_MODEL` | `/p/work2/xxj1/opd/models/Qwen3-30B-A3B` | your local copy, or `Qwen/Qwen3-30B-A3B-Instruct-2507` |
-| `TRAIN_DATA` | `/p/work2/xxj1/opd/data/.../openthoughts_prompt_math_10k.jsonl` | your copy of that prompt slice |
 | `SAVE_DIR` | `/p/work2/xxj1/rocktoken/stumb/<name>` | wherever you want checkpoints written — needs to be writable and have room for a 4B-parameter checkpoint |
 
 If you're running on the *same* cluster/account the original `run_stumb_random.sh` ran on, most

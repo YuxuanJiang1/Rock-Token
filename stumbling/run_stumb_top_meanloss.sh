@@ -6,14 +6,24 @@
 # rock set (== the "high_kl" group used for Fig. 3).
 # Token list built by build_ablation_freeze_lists.py -> top_meanloss.json.
 #
-# --- Adapted for 4x L40S (48GB, Ada Lovelace, no NVLink) instead of the paper's
-# 4x H100 (80GB): num_gpus_per_node 2->4, teacher_tp_size 2->4 (spreads the
-# ~60GB bf16 teacher to ~15GB/GPU), teacher_quantization fp8 added (halves that
-# again to ~7.5GB/GPU; Ada supports FP8 tensor cores natively and SGLang 0.5.9
-# supports it -- if you hit a quantization/kernel error, delete that flag and
-# fall back to bf16, you likely have headroom for it with TP=4 anyway).
-# mem_fraction_static values and sequence lengths are left as in the original
-# ablation config; if you OOM, those are the next things to reduce. No NVLink
+# --- Adapted for 2x L40S (48GB, Ada Lovelace, no NVLink) -- only 2 of the
+# original 4 were available. num_gpus_per_node=2, teacher_tp_size=2: this is
+# now the *same* GPU topology as the original (H100) run_stumb_random.sh --
+# the teacher uses the entire 2-GPU pool rather than a subset, which is also
+# why TP=2 was the right choice all along (checked the teacher's actual
+# config.json: num_key_value_heads=4 and num_attention_heads=32 -- TP must
+# divide the KV-head count, and 2 always does, unlike e.g. 3). The one real
+# difference from the original run: L40S has 48GB/GPU vs. H100's 80GB, so the
+# same teacher_tp_size=2 now leaves much less headroom (2x48=96GB pool vs.
+# 2x80=160GB) -- teacher_quantization fp8 (halves the ~60GB bf16 teacher to
+# ~15GB/GPU at TP=2) is doing real load-bearing work here, not just a nice-to-
+# have. If you hit OOM, this is the tightest config we've tried; the next
+# levers are --teacher_mem_fraction_static / --rollout_mem_fraction_static,
+# then sequence lengths, in that order. Bonus: unlike the 3-GPU config this
+# replaced, train_batch_size=4 now divides evenly by num_gpus_per_node=2, so
+# the effective global batch is exactly 4 again (kdflow computes grad_accum
+# via integer division; at 3 GPUs that floored to an effective batch of 3).
+# No NVLink
 # means step time won't match the paper's H100 numbers -- fine for the accuracy
 # comparison this ablation is testing, but don't read wall-clock ratios against
 # the paper's reported 1.7x without re-measuring Original OPD on this same
@@ -34,7 +44,7 @@ export PATH=$CUDA_HOME/bin:$PATH
 export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 export CPATH=$CUDA_HOME/targets/x86_64-linux/include:$CPATH
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1
 export TOKENIZERS_PARALLELISM=false
 export PYTHONUNBUFFERED=1
 
@@ -53,12 +63,12 @@ echo "CUDA_HOME=$CUDA_HOME"
 # =========================
 # Paths
 # =========================
-KD_ROOT=
+KD_ROOT=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token/stumbling
 NEW_RUNNER_DIR=${KD_ROOT}/new_runner
 
 STUDENT_MODEL=/p/work2/xxj1/opd/models/Qwen3-4B-Instruct-2507
 TEACHER_MODEL=/p/work2/xxj1/opd/models/Qwen3-30B-A3B
-TRAIN_DATA=/p/work2/xxj1/opd/data/OpenThoughts3-1.2M/openthoughts_prompt_math_10k.jsonl
+TRAIN_DATA=RockToken/openthoughts_prompt_math_5k_src30k-35k
 SAVE_DIR=/p/work2/xxj1/rocktoken/stumb/top_meanloss
 
 mkdir -p ${SAVE_DIR}
@@ -99,7 +109,7 @@ PY
 # =========================
 $PYTHON -m kdflow.cli.train_kd_on_policy \
   --num_nodes 1 \
-  --num_gpus_per_node 4 \
+  --num_gpus_per_node 2 \
   --backend fsdp2 \
   --num_epochs 1 \
   --train_batch_size 4 \
@@ -119,7 +129,7 @@ $PYTHON -m kdflow.cli.train_kd_on_policy \
   --token_freeze_path "${SCRIPT_DIR}/ablation_lists/top_meanloss.json" \
   --freeze_weight 0.0 \
   --kd_loss_fn rkl \
-  --teacher_tp_size 4 \
+  --teacher_tp_size 2 \
   --teacher_quantization fp8 \
   --teacher_dp_size 1 \
   --teacher_ep_size 1 \
