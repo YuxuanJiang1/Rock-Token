@@ -1,4 +1,8 @@
-sglang
+# Pinned + [all] extra to match docker/Dockerfile.sgl059.torch291.cu128, the only
+# environment actually validated by the KDFlow authors. A bare "sglang" (no [all],
+# no version pin) does not reliably pull in sgl-kernel, causing
+# "ModuleNotFoundError: No module named 'sgl_kernel'" at runtime.
+sglang[all]==0.5.9
 torch>=2.4
 transformers
 numpy
