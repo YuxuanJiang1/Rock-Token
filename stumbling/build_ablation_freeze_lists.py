@@ -72,8 +72,9 @@ import torch
 # itself), so the two scripts chain together with zero path arguments.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))          # stumbling/
 REGEN_DIR = os.path.join(THIS_DIR, "..", "rock_detection")     # ../rock_detection
-DEFAULT_OUTDIR = THIS_DIR                                       # results land in stumbling/ itself,
-                                                                  # next to rock.json / rock_vs_control.csv
+DEFAULT_OUTDIR = os.path.join(THIS_DIR, "ablation_lists")      # stumbling/ablation_lists/ -- matches
+                                                                  # what run_stumb_*.sh's --token_freeze_path
+                                                                  # auto-resolution expects
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument("--occurrences",

@@ -46,16 +46,23 @@ the teacher's 4-way pipeline placement pays extra inter-GPU transfer cost) → `
 quantization needed here — this is plain HF `transformers` inference (not the SGLang/FSDP2
 training stack), and 4x48GB=192GB comfortably holds the ~8GB student + ~60GB bf16 teacher.
 
-**Output location is fixed, not cwd-dependent**: all three artifacts always land in
-`$HOME/rocktoken_regen/`, regardless of what directory the script is launched from or by whom
-(useful if someone else — a labmate, a teammate — is the one actually running it and you don't
-know/control their cwd). The script resolves its own location internally to find the `.py` files,
-but `cd`s to `$HOME/rocktoken_regen` before writing anything.
+**Output location is fixed, not cwd-dependent**: all three artifacts always land in this script's
+own directory — `rock_detection/`, wherever the repo happens to be checked out — regardless of what
+directory the script is launched from or by whom (useful if someone else — a labmate, a teammate —
+is the one actually running it and you don't know/control their cwd). The script resolves its own
+location internally (`SCRIPT_DIR`) both to find the `.py` files it calls and as the `cd` target
+before writing anything, so a repo-relative location beats `$HOME` here: it works no matter whose
+account or home directory is running it.
 
-**Resumable**: each of the 3 steps is skipped if its output file already exists in
-`$HOME/rocktoken_regen/`, so re-running after a downstream failure (like the step-3 bug, now fixed)
-picks up where it left off instead of redoing multi-hour steps. `FORCE_RERUN=1 ./run_regen_quad_l40s.sh`
-forces everything from scratch.
+**Resumable**: each of the 3 steps is skipped if its output file already exists in `rock_detection/`,
+so re-running after a downstream failure (like the step-3 bug, now fixed) picks up where it left off
+instead of redoing multi-hour steps. `FORCE_RERUN=1 ./run_regen_quad_l40s.sh` forces everything from
+scratch.
+
+**Status as of the last run**: this has already been done once — `rock_token_occurrences_onpolicy_n500_unrestricted.pt`
+(52MB), `rock_vs_control_unrestricted.csv`, and `logit_gradients_onpolicy_n500_unrestricted.pt`
+(3.67GB) were generated and downloaded locally into `rock_token_outputs_20260726/rock_detection/`.
+No need to redo this step unless something looks wrong with those files.
 
 Two small fixes made to `rock_server.py`/`compute_logit_gradients.py` while adapting them:
 - Added a `quad_l40s` hardware choice (functionally identical to `dual_40gb`'s
@@ -71,19 +78,30 @@ Two small fixes made to `rock_server.py`/`compute_logit_gradients.py` while adap
 
 ## 2. Build the four freeze-list JSONs
 
-Its `--occurrences`/`--gradients`/`--rock-csv` defaults already point at
-`$HOME/rocktoken_regen/` (step 1's fixed output location), and `--outdir` defaults to
-`$HOME/rocktoken_ablation_lists/` — so if step 1 used its defaults, this needs no arguments at all,
-from any directory:
+Its `--occurrences`/`--gradients`/`--rock-csv` defaults already point at `../rock_detection/`
+relative to its own location in `stumbling/` (step 1's fixed output location), and `--outdir`
+defaults to `stumbling/ablation_lists/` — so if step 1 used its defaults, this needs no arguments
+at all, from any directory:
 ```bash
 python /path/to/stumbling/build_ablation_freeze_lists.py
 ```
 (pass explicit `--occurrences`/`--gradients`/`--rock-csv`/`--outdir` only if step 1's output ended
 up somewhere else, or you want the lists written elsewhere)
 
-Read `build_report.txt` in the output dir before moving on (or the console output directly) — in
-particular the `ablation_lists_summary.csv` Jaccard-overlap-with-rock column. Also copy the
-existing `rock.json` into that same output dir (the soft-λ script reads `rock.json` from there too).
+Read `build_report.txt` in `stumbling/ablation_lists/` before moving on (or the console output
+directly) — in particular the `ablation_lists_summary.csv` Jaccard-overlap-with-rock column.
+`rock.json` doesn't need copying anywhere — it already lives in `stumbling/` directly (not the
+`ablation_lists/` subfolder), and the soft-λ script points at it there.
+
+**Status as of the last run**: also already done — the four lists (`top_freq.json`,
+`top_meanloss.json`, `top_gradmag.json`, `top_gradalign.json`) plus `ablation_lists_summary.csv` are
+in `rock_token_outputs_20260726/stumbling/ablation_lists/` locally. That run used a slightly older
+copy of the script (no `build_report.txt`, a 3-column summary instead of the current 7-column one),
+but the selection logic is unchanged, so the lists themselves are valid — no need to rebuild unless
+you want the richer report. Worth noting from that run: `top_meanloss` selected very low-frequency
+tokens (freq 2–18, mean KL 1.46–6.46) — expected, since it's exactly the noise-dominated tail
+`Freq(v)` weighting is designed to filter out. Freezing it should show little training effect, which
+is itself a useful data point for the rebuttal.
 
 ## 3. Point the scripts at your own paths
 
