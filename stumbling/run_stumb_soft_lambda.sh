@@ -101,6 +101,7 @@ $RAY start --head \
   --node-ip-address=127.0.0.1 \
   --port=6380 \
   --num-gpus=2 \
+  --temp-dir=/tmp/ray_${USER:-sroydip1} \
   --disable-usage-stats
 
 export RAY_ADDRESS=127.0.0.1:6380
