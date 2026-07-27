@@ -20,6 +20,11 @@
 set -e
 set -x
 
+# Absolute path to this script's own directory (i.e. stumbling/, wherever the
+# repo is checked out) -- used below so --token_freeze_path resolves correctly
+# regardless of what cwd this was launched from.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 PYTHON=/home/xxj1/.conda/envs/qwen/bin/python
 RAY=/home/xxj1/.conda/envs/qwen/bin/ray
 
@@ -110,7 +115,7 @@ $PYTHON -m kdflow.cli.train_kd_on_policy \
   --kd_ratio 1.0 \
   --kd_temperature 1.0 \
   --kd_algorithm token_freeze_kd \
-  --token_freeze_path /p/work2/xxj1/rocktoken/stumbling_token/top_gradalign.json \
+  --token_freeze_path "${SCRIPT_DIR}/ablation_lists/top_gradalign.json" \
   --freeze_weight 0.0 \
   --kd_loss_fn rkl \
   --teacher_tp_size 4 \

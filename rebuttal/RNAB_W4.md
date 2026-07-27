@@ -28,8 +28,9 @@ no algorithm changes needed. What's new is which token list goes in, and how far
     group definition already used for Fig. 3, so it's consistent with a quantity already in the paper)
   - `top_gradmag.json` / `top_gradalign.json` — top-100 by gradient magnitude / by cosine alignment
     with `G_balanced` (the exact quantities behind Fig. 3's panels a/b)
-  - Also writes `ablation_lists_summary.csv` with each list's Jaccard overlap with the current rock
-    set — useful context for interpreting results (e.g. if `top_freq` turns out to be 90% identical
+  - Also writes `ablation_lists_summary.csv` (Jaccard overlap + freq/mean_kl range per list) and
+    `build_report.txt` (full run log, tee'd from stdout) — useful context for interpreting results
+    and easy to hand back without copy-pasting terminal scrollback (e.g. if `top_freq` turns out to be 90% identical
     to `rock`, that's itself informative).
 - Five launch scripts cloned from `run_stumb_random.sh` (same cluster/Ray/FSDP2 setup, same
   hyperparameters as the reported runs — only `--token_freeze_path` / `--freeze_weight` /

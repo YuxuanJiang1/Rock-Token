@@ -31,7 +31,8 @@ datasets, no raw statistics files). **Check first whether these already exist on
 (wherever Fig. 2/3 were originally generated) before regenerating — it's real GPU time on top of
 the 5 training runs.
 
-If they don't exist, run (from `rock_detection/`):
+If they don't exist, run (from `rock_detection/`, or with the script's full path — it no longer
+matters what your current directory is, see below):
 ```bash
 pip install torch transformers datasets accelerate pandas numpy scipy matplotlib tqdm
 chmod +x run_regen_quad_l40s.sh
@@ -44,6 +45,17 @@ the teacher's 4-way pipeline placement pays extra inter-GPU transfer cost) → `
 `compute_logit_gradients.py` (~1-2h on H100, forward-only so faster than generation). No
 quantization needed here — this is plain HF `transformers` inference (not the SGLang/FSDP2
 training stack), and 4x48GB=192GB comfortably holds the ~8GB student + ~60GB bf16 teacher.
+
+**Output location is fixed, not cwd-dependent**: all three artifacts always land in
+`$HOME/rocktoken_regen/`, regardless of what directory the script is launched from or by whom
+(useful if someone else — a labmate, a teammate — is the one actually running it and you don't
+know/control their cwd). The script resolves its own location internally to find the `.py` files,
+but `cd`s to `$HOME/rocktoken_regen` before writing anything.
+
+**Resumable**: each of the 3 steps is skipped if its output file already exists in
+`$HOME/rocktoken_regen/`, so re-running after a downstream failure (like the step-3 bug, now fixed)
+picks up where it left off instead of redoing multi-hour steps. `FORCE_RERUN=1 ./run_regen_quad_l40s.sh`
+forces everything from scratch.
 
 Two small fixes made to `rock_server.py`/`compute_logit_gradients.py` while adapting them:
 - Added a `quad_l40s` hardware choice (functionally identical to `dual_40gb`'s
@@ -59,22 +71,30 @@ Two small fixes made to `rock_server.py`/`compute_logit_gradients.py` while adap
 
 ## 2. Build the four freeze-list JSONs
 
+Its `--occurrences`/`--gradients`/`--rock-csv` defaults already point at
+`$HOME/rocktoken_regen/` (step 1's fixed output location), and `--outdir` defaults to
+`$HOME/rocktoken_ablation_lists/` — so if step 1 used its defaults, this needs no arguments at all,
+from any directory:
 ```bash
-cd stumbling
-python build_ablation_freeze_lists.py \
-  --occurrences /path/to/rock_token_occurrences_onpolicy_n500_unrestricted.pt \
-  --gradients   /path/to/logit_gradients_onpolicy_n500_unrestricted.pt \
-  --rock-csv    rock_vs_control_unrestricted.csv \
-  --outdir      /path/to/stumbling_token/
+python /path/to/stumbling/build_ablation_freeze_lists.py
 ```
-Read the printed summary before moving on — in particular the `ablation_lists_summary.csv`
-Jaccard-overlap-with-rock column. Also copy the existing `rock.json` into that same `--outdir`
-(the soft-λ script reads `rock.json` from there too).
+(pass explicit `--occurrences`/`--gradients`/`--rock-csv`/`--outdir` only if step 1's output ended
+up somewhere else, or you want the lists written elsewhere)
+
+Read `build_report.txt` in the output dir before moving on (or the console output directly) — in
+particular the `ablation_lists_summary.csv` Jaccard-overlap-with-rock column. Also copy the
+existing `rock.json` into that same output dir (the soft-λ script reads `rock.json` from there too).
 
 ## 3. Point the scripts at your own paths
 
-In **each** of `run_stumb_top_freq.sh`, `run_stumb_top_meanloss.sh`, `run_stumb_gradmag.sh`,
-`run_stumb_gradalign.sh`, `run_stumb_soft_lambda.sh`, edit:
+`--token_freeze_path` is now auto-resolved (added after the first W4 run: each script computes its
+own `SCRIPT_DIR` and points at `${SCRIPT_DIR}/ablation_lists/<name>.json`, or `${SCRIPT_DIR}/rock.json`
+for the soft-λ script) — no edit needed there as long as `build_ablation_freeze_lists.py` was run
+with its defaults (writes to `stumbling/ablation_lists/`) and `rock.json` stays where it already is
+in `stumbling/`.
+
+Still to edit, in **each** of `run_stumb_top_freq.sh`, `run_stumb_top_meanloss.sh`,
+`run_stumb_gradmag.sh`, `run_stumb_gradalign.sh`, `run_stumb_soft_lambda.sh`:
 
 | Variable | Currently | Set to |
 |---|---|---|
@@ -83,7 +103,6 @@ In **each** of `run_stumb_top_freq.sh`, `run_stumb_top_meanloss.sh`, `run_stumb_
 | `STUDENT_MODEL` | `/p/work2/xxj1/opd/models/Qwen3-4B-Instruct-2507` | your local copy, or just `Qwen/Qwen3-4B-Instruct-2507` (HF hub id — `--student_name_or_path` accepts either) |
 | `TEACHER_MODEL` | `/p/work2/xxj1/opd/models/Qwen3-30B-A3B` | your local copy, or `Qwen/Qwen3-30B-A3B-Instruct-2507` |
 | `TRAIN_DATA` | `/p/work2/xxj1/opd/data/.../openthoughts_prompt_math_10k.jsonl` | your copy of that prompt slice |
-| `--token_freeze_path` (last section of the script) | `/p/work2/xxj1/rocktoken/stumbling_token/<name>.json` | wherever step 2's `--outdir` actually put the files |
 | `SAVE_DIR` | `/p/work2/xxj1/rocktoken/stumb/<name>` | wherever you want checkpoints written — needs to be writable and have room for a 4B-parameter checkpoint |
 
 If you're running on the *same* cluster/account the original `run_stumb_random.sh` ran on, most
