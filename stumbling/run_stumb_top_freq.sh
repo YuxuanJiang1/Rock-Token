@@ -146,6 +146,7 @@ $PYTHON -m kdflow.cli.train_kd_on_policy \
   --rollout_enable_sleep True \
   --rollout_mem_fraction_static 0.12 \
   --train_dataset_path ${TRAIN_DATA} \
+  --max_samples ${MAX_SAMPLES:-100000000} \
   --input_key prompt_messages \
   --apply_chat_template True \
   --max_len 2048 \

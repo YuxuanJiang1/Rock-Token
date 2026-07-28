@@ -194,6 +194,18 @@ chmod +x run_stumb_*.sh
 ```
 Run **sequentially, not in parallel** either way — each wants both GPUs.
 
+**Step budget**: at observed pace (~17.4 sec/step on 2x L40S), a full epoch (2500 steps,
+`len(train_dataset)=5000 // rollout_batch_size=2`) is ~12h/run, ~3.5 days for all 7 sequentially —
+too long. `kdflow` has no direct `--max_steps` flag, but `--max_samples` truncates the dataset
+*before* the step count is computed (`num_rollout_iters_per_epoch = len(train_dataset) //
+rollout_batch_size`), so it works as an indirect step cap. All 5 scripts now accept `MAX_SAMPLES`
+as an env var override (defaults to unlimited). **Decision: `MAX_SAMPLES=1000`** (~500 steps/run,
+~2.4h/run, ~17h total) — same budget for all 7 runs so they stay comparable to each other:
+```bash
+export MAX_SAMPLES=1000
+./run_all_ablations.sh
+```
+
 ## 5. While it's running, watch for
 
 - `[TokenFreezeKD] freeze hits: X / Y` printed every step (from `token_freeze_kd.py`) — confirms
