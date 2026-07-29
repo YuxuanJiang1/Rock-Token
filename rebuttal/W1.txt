@@ -1,0 +1,11 @@
+We thank the reviewer for this careful reading. The reviewer is right that the sentence following Eq. (1) is inconsistent, and we are glad to clarify it. The issue is an error in one sentence, not an ambiguity in the method.
+
+In both the training objective and the Rock Score computation, the per-position loss is the exact reverse KL divergence,
+
+$$\ell_t = D_{\mathrm{KL}}\big(\pi_\theta(\cdot \mid x_{<t}) \,\|\, \pi_T(\cdot \mid x_{<t})\big),$$
+
+evaluated as a full sum over the vocabulary from the student's and teacher's conditional distributions at that position. This quantity is fully determined by the context $x_{<t}$ and does not depend on the sampled token $x_t$. It is exactly the summand inside Eq. (1), and it matches the estimator $\widehat\ell_v$ defined in Section 2.3.
+
+The sentence after Eq. (1) mistakenly writes $\ell_t$ as the single-token log-ratio $\log \pi_\theta(x_t \mid x_{<t}) - \log \pi_T(x_t \mid x_{<t})$. This is a typographical error, and we will correct it to the divergence above. With this correction, there is no sampled estimator at the per-position level, and the three interpretations the reviewer distinguishes — the true objective, a sampled estimator, and a context-conditioned statistic — coincide.
+
+We would add that this correction is more than cosmetic. As the reviewer notes, the log-ratio equals the KL only in expectation over tokens drawn from $\pi_\theta$. Because our analysis uses greedy decoding rather than sampling, the log-ratio interpretation would in fact be biased, whereas the full KL that we compute is exact regardless of how the trajectory is decoded. The divergence form is therefore both consistent with our implementation and the correct definition to state.

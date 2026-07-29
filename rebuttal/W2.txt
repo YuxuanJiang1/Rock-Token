@@ -1,0 +1,14 @@
+We thank the reviewer for pressing on the precise meaning of $\mathrm{Freq}(v)$ and on what Eq. (2) claims. We clarify both points below.
+
+**Meaning of $\mathrm{Freq}(v)$.** $\mathrm{Freq}(v)$ is the empirical number of times token type $v$ is generated in our analysis corpus (the student's own rollouts over $N = 500$ MATH-500 problems). It is a raw occurrence count, not an expected probability mass and not a model-derived quantity.
+
+**Why Eq. (2) is an exact identity.** Once $\ell_t$ is the exact per-position KL (see our response to W1), it is fully determined by the context and does not depend on the sampled token. Eq. (2) is then a regrouping of the corpus loss. Writing $\widehat L = \sum_p \ell_p$ for the sum over all generated positions $p$, and grouping positions by the token realized at each one,
+
+$$\widehat L = \sum_v \big(\text{number of positions emitting } v\big)\times\big(\text{mean KL at those positions}\big) = \sum_v \mathrm{Freq}(v)\,\widehat\ell_v = \sum_v R(v).$$
+
+Grouping and averaging loses no information, so $R(v)$ is exactly the share of the corpus loss attributable to token type $v$. This holds for any fixed set of positions and requires no assumption about how they were sampled. It therefore addresses the reviewer's concern directly: the exactness of the decomposition does not depend on whether the conditioning matches the objective's sampling process.
+
+What the choice of corpus does affect is how well the measured $R(v)$ values represent the full on-policy expectation, which is a question of estimation rather than of the identity. Figure 2(d) shows that the resulting ranking is stable under subsampling.
+
+We will revise the manuscript accordingly. We will state explicitly that $\mathrm{Freq}(v)$ is an empirical count and that Eq. (2) is an exact identity for the corpus-level loss, and we will change "the theoretical training objective" to "the empirical, corpus-level OPD objective realized by these rollouts," since $\mathrm{Freq}(v)$ is an un-normalized count and $\widehat L$ estimates, rather than equals, the population objective.
+
