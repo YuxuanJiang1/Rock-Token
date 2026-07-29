@@ -8,9 +8,18 @@ gradient magnitude / alignment. (The error-bar / sample-size half of the linked 
 separately in `RNAB_Q2.md`.)
 
 ## Status of the experiment
-The runs are **prepared but not yet complete**. This response is therefore an *initial* reply that
-commits to the ablations and explains why they are cheap to run; the numbers go in a follow-up comment
-during the discussion period. Full run instructions are in `rebuttal/RUNBOOK.md`.
+Training for all 7 new runs (4 ablations + 3 soft-λ values) is **complete**. Evaluation on
+AIME24/25+HMMT25 is in progress via `evaluation/run_eval_ablations.sh`.
+
+**Seed count decision**: the new ablation table uses **3** independently-seeded decoding runs per
+checkpoint, not the 5 the paper's Section 5.2 states for the original Fig. 5 results (that original
+5-run standard is unchanged — see `RNAB_Q2.md`, a separate scope). This must be stated explicitly in
+the rebuttal text, not left implicit — RNAB is the reviewer who quoted "five runs" verbatim in their
+own critique, so a silent mismatch would read as cutting corners rather than a disclosed scope
+decision. Proposed phrasing: *"the new ablations use 3 independently-seeded runs per checkpoint,
+versus 5 for the original results, given the compressed rebuttal timeline; we will extend to 5 for
+the camera-ready."* Revisit per-checkpoint if any comparison in the 3-seed results looks borderline —
+that's the case where the extra 2 seeds would actually change the reading, not a blanket redo.
 
 ## Why this is tractable without new code (internal notes)
 `stumbling/kdflow/algorithms/token_freeze_kd.py:88-95` already implements Eq. (5) in its general form:
