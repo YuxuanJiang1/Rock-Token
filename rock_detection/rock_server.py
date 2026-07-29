@@ -5,92 +5,217 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 from tqdm import tqdm
 
+# ── Built-in Qwen3 presets (kept for backward compatibility) ──────────────────
 STUDENT_MODELS = {
     "onpolicy":  "RockToken/qwen3_30b_a3b_to_4b_onpolicy_5k_src20k-25k",
     "offpolicy": "RockToken/qwen3_30b_a3b_to_4b_offpolicy_math_first20k",
 }
-TEACHER_ID = "Qwen/Qwen3-30B-A3B-Instruct-2507"
+DEFAULT_TEACHER_ID = "Qwen/Qwen3-30B-A3B-Instruct-2507"
 DEFAULT_MAX_NEW_TOKENS = 256
-UNRESTRICTED_MAX_NEW_TOKENS = 4096  # safety cap; EOS still wins for normal math reasoning
-KL_CHUNK_SIZE = 256  # chunk size for the KL computation to bound peak GPU memory
+UNRESTRICTED_MAX_NEW_TOKENS = 4096
+KL_CHUNK_SIZE = 256
 
-parser = argparse.ArgumentParser(description="Collect rock-token KL statistics")
-parser.add_argument(
-    "--student",
-    choices=list(STUDENT_MODELS.keys()),
-    default="onpolicy",
-    help="Which student model to evaluate (default: onpolicy)",
+# ── Prompt templates by domain ────────────────────────────────────────────────
+# "qwen_math"  : original paper template (thinking tags, Qwen3 im_start format)
+# "chat"       : plain chat via tokenizer.apply_chat_template (works for any model)
+# "code"       : coding prompt with chat template
+DOMAIN_SYSTEM_PROMPTS = {
+    "math":  "You are a helpful math assistant. Solve the following problem step by step.",
+    "code":  "You are an expert programmer. Solve the following coding problem.",
+    "general": "You are a helpful assistant.",
+}
+
+parser = argparse.ArgumentParser(
+    description="Collect rock-token KL statistics — supports arbitrary model pairs and domains",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
-parser.add_argument(
+
+# ── Model selection ───────────────────────────────────────────────────────────
+model_grp = parser.add_argument_group("Model selection")
+model_grp.add_argument(
+    "--student",
+    default=None,
+    help="Preset student key (onpolicy / offpolicy). Ignored when --student-id is given.",
+)
+model_grp.add_argument(
+    "--student-id",
+    default=None,
+    metavar="HF_REPO_OR_PATH",
+    help="HuggingFace repo ID or local path for the student model. "
+         "Overrides --student preset.",
+)
+model_grp.add_argument(
+    "--teacher-id",
+    default=DEFAULT_TEACHER_ID,
+    metavar="HF_REPO_OR_PATH",
+    help="HuggingFace repo ID or local path for the teacher model.",
+)
+model_grp.add_argument(
+    "--cache-dir",
+    default="/workspace/hf_cache",
+    metavar="DIR",
+    help="HuggingFace cache directory.",
+)
+
+# ── Dataset / domain ──────────────────────────────────────────────────────────
+data_grp = parser.add_argument_group("Dataset / domain")
+data_grp.add_argument(
+    "--domain",
+    choices=["math", "code", "general"],
+    default="math",
+    help="Training domain. Controls the system prompt and built-in dataset default.",
+)
+data_grp.add_argument(
+    "--dataset",
+    default=None,
+    metavar="HF_DATASET_ID",
+    help="HuggingFace dataset ID. Defaults: math→HuggingFaceH4/MATH-500, "
+         "code→livecodebench/code_generation_lite, general→tatsu-lab/alpaca.",
+)
+data_grp.add_argument(
+    "--dataset-split",
+    default="test",
+    metavar="SPLIT",
+    help="Dataset split to use.",
+)
+data_grp.add_argument(
+    "--problem-field",
+    default=None,
+    metavar="FIELD",
+    help="Name of the dataset column containing the problem text. "
+         "Auto-detected for known datasets; required for custom ones.",
+)
+data_grp.add_argument(
     "--samples",
     type=int,
     default=100,
-    help="Number of MATH-500 problems to sample (default: 100)",
+    help="Number of problems to sample.",
 )
-parser.add_argument(
+data_grp.add_argument(
+    "--seed",
+    type=int,
+    default=42,
+    help="Shuffle seed for dataset sampling.",
+)
+
+# ── Prompt format ─────────────────────────────────────────────────────────────
+prompt_grp = parser.add_argument_group("Prompt format")
+prompt_grp.add_argument(
+    "--prompt-style",
+    choices=["qwen_math", "chat"],
+    default=None,
+    help="Prompt construction style. "
+         "'qwen_math' uses the original paper template (thinking tags, im_start format). "
+         "'chat' uses tokenizer.apply_chat_template (works for any HF model). "
+         "Default: 'qwen_math' when domain=math and student is a Qwen model, "
+         "otherwise 'chat'.",
+)
+
+# ── Hardware / generation ─────────────────────────────────────────────────────
+hw_grp = parser.add_argument_group("Hardware / generation")
+hw_grp.add_argument(
     "--hardware",
-    choices=["single_96gb", "dual_40gb"],
+    choices=["single_96gb", "dual_40gb", "dual_80gb", "auto"],
     default="dual_40gb",
-    help="GPU memory layout (default: dual_40gb)",
+    help="GPU memory layout. 'auto' lets device_map=auto handle placement for both models.",
 )
-parser.add_argument(
+hw_grp.add_argument(
     "--unrestricted",
     action="store_true",
-    help="Remove the per-output token cap and let the model stop at EOS. "
+    help="Let the model stop at EOS (up to UNRESTRICTED_MAX_NEW_TOKENS). "
          "Output filename gets an '_unrestricted' suffix.",
 )
-args = parser.parse_args()
-
-STUDENT_ID = STUDENT_MODELS[args.student]
-SAMPLE_SIZE = args.samples
-HARDWARE_CONFIG = args.hardware
-
-# In unrestricted mode the model decides when to stop (via EOS). HF's
-# generate() still requires a numeric cap; use the tokenizer's model_max_length
-# (Qwen3 supports tens of thousands of tokens, so EOS will always fire first).
-suffix = "_unrestricted" if args.unrestricted else ""
-OUTPUT_FILE = f"rock_token_occurrences_{args.student}_n{SAMPLE_SIZE}{suffix}.pt"
-
-# --- 1. Load Tokenizer and Models ---
-print(f"Student: {STUDENT_ID} | Samples: {SAMPLE_SIZE} | Hardware: {HARDWARE_CONFIG}")
-print(f"Output : {OUTPUT_FILE}")
-print("Loading Tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(STUDENT_ID)
-
-if args.unrestricted:
-    # 4096 is plenty for MATH-500 reasoning; EOS fires well before this in practice.
-    # A higher cap (e.g. model_max_length=32K) is unsafe on a single 96GB box because
-    # the 30B teacher's forward pass on a 30K-token sequence will OOM the activations.
-    MAX_NEW_TOKENS = UNRESTRICTED_MAX_NEW_TOKENS
-    print(f"Unrestricted mode: max_new_tokens={MAX_NEW_TOKENS} (model decides via EOS, safety cap)")
-else:
-    MAX_NEW_TOKENS = DEFAULT_MAX_NEW_TOKENS
-    print(f"Capped mode: max_new_tokens={MAX_NEW_TOKENS}")
-
-print("Loading student model (4B bf16)...")
-student_model = AutoModelForCausalLM.from_pretrained(
-    STUDENT_ID,
-    device_map="cuda:0",
-    torch_dtype=torch.bfloat16,
-    cache_dir = "/workspace/hf_cache",
+hw_grp.add_argument(
+    "--output-tag",
+    default=None,
+    metavar="TAG",
+    help="Short label embedded in the output filename (e.g. 'llama_math'). "
+         "Defaults to the student preset key or a slug derived from --student-id.",
 )
 
-print("Loading teacher model (30B bf16)...")
+args = parser.parse_args()
+
+# ── Resolve student model ID ───────────────────────────────────────────────────
+if args.student_id:
+    STUDENT_ID = args.student_id
+    _student_key = args.output_tag or args.student_id.split("/")[-1].replace("-", "_")
+elif args.student and args.student in STUDENT_MODELS:
+    STUDENT_ID = STUDENT_MODELS[args.student]
+    _student_key = args.student
+else:
+    parser.error("Provide either --student-id <repo> or --student <preset>.")
+
+TEACHER_ID   = args.teacher_id
+SAMPLE_SIZE  = args.samples
+HARDWARE_CONFIG = args.hardware
+output_tag   = args.output_tag or _student_key
+
+# ── Resolve dataset ────────────────────────────────────────────────────────────
+DATASET_DEFAULTS = {
+    "math":    ("HuggingFaceH4/MATH-500",              "test",  "problem"),
+    "code":    ("livecodebench/code_generation_lite",  "test",  "question_content"),
+    "general": ("tatsu-lab/alpaca",                    "train", "instruction"),
+}
+_ds_id, _ds_split, _ds_field = DATASET_DEFAULTS[args.domain]
+DATASET_ID    = args.dataset       or _ds_id
+DATASET_SPLIT = args.dataset_split or _ds_split
+PROBLEM_FIELD = args.problem_field or _ds_field
+
+# ── Resolve prompt style ───────────────────────────────────────────────────────
+def _is_qwen(model_id: str) -> bool:
+    return "qwen" in model_id.lower()
+
+if args.prompt_style:
+    PROMPT_STYLE = args.prompt_style
+elif args.domain == "math" and _is_qwen(STUDENT_ID):
+    PROMPT_STYLE = "qwen_math"
+else:
+    PROMPT_STYLE = "chat"
+
+# ── Output filename ────────────────────────────────────────────────────────────
+suffix = "_unrestricted" if args.unrestricted else ""
+OUTPUT_FILE = f"rock_token_occurrences_{output_tag}_{args.domain}_n{SAMPLE_SIZE}{suffix}.pt"
+
+# ── Max tokens ────────────────────────────────────────────────────────────────
+MAX_NEW_TOKENS = UNRESTRICTED_MAX_NEW_TOKENS if args.unrestricted else DEFAULT_MAX_NEW_TOKENS
+
+# ── Summary ────────────────────────────────────────────────────────────────────
+print("=" * 70)
+print(f"  Student  : {STUDENT_ID}")
+print(f"  Teacher  : {TEACHER_ID}")
+print(f"  Domain   : {args.domain}  |  Prompt style: {PROMPT_STYLE}")
+print(f"  Dataset  : {DATASET_ID} [{DATASET_SPLIT}]  field='{PROBLEM_FIELD}'")
+print(f"  Samples  : {SAMPLE_SIZE}  |  max_new_tokens={MAX_NEW_TOKENS}")
+print(f"  Hardware : {HARDWARE_CONFIG}")
+print(f"  Output   : {OUTPUT_FILE}")
+print("=" * 70)
+
+# --- 1. Load Tokenizer and Models ---
+print("Loading Tokenizer...")
+tokenizer = AutoTokenizer.from_pretrained(STUDENT_ID, cache_dir=args.cache_dir)
+
+print("Loading student model (bf16)...")
+student_model = AutoModelForCausalLM.from_pretrained(
+    STUDENT_ID,
+    device_map="cuda:0" if HARDWARE_CONFIG not in ("auto",) else "auto",
+    torch_dtype=torch.bfloat16,
+    cache_dir=args.cache_dir,
+)
+
+print("Loading teacher model (bf16)...")
 if HARDWARE_CONFIG == "single_96gb":
-    # Both fit on one 96GB GPU
     teacher_model = AutoModelForCausalLM.from_pretrained(
         TEACHER_ID,
         device_map="cuda:0",
         torch_dtype=torch.bfloat16,
-        cache_dir = "/workspace/hf_cache",
+        cache_dir=args.cache_dir,
     )
-elif HARDWARE_CONFIG == "dual_40gb":
-    # Student took ~8GB on GPU 0; teacher (~60GB) auto-fills remaining space on GPU 0
-    # and spills onto GPU 1. Roughly: ~32GB on GPU 0, ~28GB on GPU 1.
+elif HARDWARE_CONFIG in ("dual_40gb", "dual_80gb", "auto"):
     teacher_model = AutoModelForCausalLM.from_pretrained(
         TEACHER_ID,
         device_map="auto",
         torch_dtype=torch.bfloat16,
+        cache_dir=args.cache_dir,
     )
 else:
     raise ValueError(f"Unknown HARDWARE_CONFIG: {HARDWARE_CONFIG!r}")
@@ -100,9 +225,10 @@ teacher_device = next(teacher_model.parameters()).device
 print(f"Student on: {student_device} | Teacher first layer on: {teacher_device}")
 
 # --- 2. Load Dataset ---
-print(f"Sampling {SAMPLE_SIZE} problems from MATH-500...")
-dataset = load_dataset("HuggingFaceH4/MATH-500", split="test", cache_dir = "/workspace/hf_cache",)
-sampled_dataset = dataset.shuffle(seed=42).select(range(SAMPLE_SIZE))
+print(f"Loading dataset {DATASET_ID} [{DATASET_SPLIT}] ...")
+dataset = load_dataset(DATASET_ID, split=DATASET_SPLIT, cache_dir=args.cache_dir,
+                       trust_remote_code=True)
+sampled_dataset = dataset.shuffle(seed=args.seed).select(range(min(SAMPLE_SIZE, len(dataset))))
 
 # --- 3. Global Trackers ---
 vocab_size = len(tokenizer)
@@ -123,14 +249,33 @@ occurrence_records = []
 student_model.eval()
 teacher_model.eval()
 
-for i, item in enumerate(tqdm(sampled_dataset, desc="Processing Datasets")):
-    problem_text = item["problem"]
+# --- 4a. Prompt builder -------------------------------------------------------
+_system_prompt = DOMAIN_SYSTEM_PROMPTS[args.domain]
 
-    prompt = (
-        f"<|im_start|>user\n{problem_text}\n"
-        "Think step-by-step and enclose your reasoning inside <think> and </think> tags."
-        "<|im_end|>\n<|im_start|>assistant\n"
-    )
+def build_prompt(problem_text: str) -> str:
+    if PROMPT_STYLE == "qwen_math":
+        # Original paper format: Qwen3 im_start with thinking tags
+        return (
+            f"<|im_start|>user\n{problem_text}\n"
+            "Think step-by-step and enclose your reasoning inside <think> and </think> tags."
+            "<|im_end|>\n<|im_start|>assistant\n"
+        )
+    else:
+        # Generic chat template — works for Llama-3, Mistral, OLMo, etc.
+        messages = [
+            {"role": "system", "content": _system_prompt},
+            {"role": "user",   "content": problem_text},
+        ]
+        return tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
+for i, item in enumerate(tqdm(sampled_dataset, desc="Processing Datasets")):
+    problem_text = item[PROBLEM_FIELD]
+
+    prompt = build_prompt(problem_text)
     inputs = tokenizer(prompt, return_tensors="pt").to(student_device)
     prompt_length = inputs.input_ids.shape[1]
 
@@ -227,8 +372,11 @@ average_kl[valid_mask] = token_cumulative_kl[valid_mask] / token_frequencies[val
 rock_token_data = {
     # Run metadata
     "student_id":       STUDENT_ID,
-    "student_key":      args.student,
+    "student_key":      output_tag,
     "teacher_id":       TEACHER_ID,
+    "domain":           args.domain,
+    "prompt_style":     PROMPT_STYLE,
+    "dataset_id":       DATASET_ID,
     "samples_processed": SAMPLE_SIZE,
     "vocab_size":       vocab_size,
     # Aggregated vocab-level stats
