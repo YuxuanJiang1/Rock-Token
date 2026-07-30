@@ -162,11 +162,21 @@ def train(args):
     
     try:
         trainer.fit()
-        ray.get(student_model.async_save_model())
-        strategy.log("Training completed and model saved.")
+        strategy.log("Training loop completed.")
     finally:
         teacher_model.shutdown()
         rollout_group.shutdown()
+
+    # Save *after* freeing the teacher/rollout actors, not before: save_model()
+    # gathers the full student model onto host RAM (fsdp_strategy.py uses
+    # cpu_offload=True), and the teacher's CPU-backed-up sleep weights
+    # (enable_weights_cpu_backup=True) were still resident in that same host
+    # RAM at save time when this ran in the old order, which is what caused
+    # the OOM-killed Ray worker -- not a GPU memory issue, and not fixed by
+    # adding GPUs. Shutting the teacher/rollout actors down first frees that
+    # host RAM before the save's memory spike.
+    ray.get(student_model.async_save_model())
+    strategy.log("Training completed and model saved.")
 
 
 if __name__ == "__main__":
