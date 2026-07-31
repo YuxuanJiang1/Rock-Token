@@ -279,6 +279,14 @@ export PYTHONUNBUFFERED=1
 # server, so it has no health timeout at all (which is why it survived the same slow ceph).
 export KDFLOW_SERVER_HEALTH_TIMEOUT=${KDFLOW_SERVER_HEALTH_TIMEOUT:-2400}
 
+# TEACHER ENGINE INIT TIMEOUT, the same bug one layer down. sglang_engine.py:221 hardcoded
+# 1800s and teacher_actor.py:72 passes no timeout, so the 2026-07-30 23:36 run died at
+# exactly 30 min with a bare `_queue.Empty` and no engine error at all. Teacher shards were
+# loading at 443s / 431s / 65s / 388s / 413s for 3.6GB each (~8 MB/s), so 16 shards is
+# ~1.8h and 1800s could never have been enough. warm_page_cache handles the teacher too now;
+# this is the margin. Cheap to keep high: it only bounds a hang, it does not slow anything.
+export KDFLOW_ENGINE_INIT_TIMEOUT=${KDFLOW_ENGINE_INIT_TIMEOUT:-5400}
+
 unset RAY_ADDRESS
 unset ip_head
 unset RAY_NAMESPACE
@@ -309,17 +317,40 @@ export PYTHONPATH=${KD_ROOT}:${NEW_RUNNER_DIR}:$PYTHONPATH
 cd ${KD_ROOT}
 
 # =========================
-# Warm student weights into page cache
+# Stage weights on local NVMe scratch
 # =========================
-# All 4 rollout engines read the student checkpoint independently, so without this the
-# same 7.6GB crosses ceph 4 times while the health timeout is already counting down.
-# One pass up front costs ~2 min and every engine then reads it from RAM at GB/s.
-# Parallel chunks, NOT `cat`: this mount is latency-bound, not bandwidth-bound. A single
-# stream gets 6.5 MB/s, 16 concurrent readers on the SAME file get 68 MB/s (10x).
-# Best effort. If the path does not resolve we fall through and let
-# KDFLOW_SERVER_HEALTH_TIMEOUT absorb the slow load instead of failing the run.
+# ceph is LATENCY-bound, and both loaders read shards sequentially and single-threaded,
+# which is the worst possible pattern for it. Measured 2026-07-30/31 on cold shards:
+#   1 reader  (what sglang's loader gets)   6.5 MB/s   -> teacher 57GB = ~1.8h
+#   16 parallel readers                      75 MB/s
+#   64 parallel readers (warm_page_cache)   136 MB/s   -> teacher ~7 min
+#   /scratch NVMe, O_DIRECT                 2.7 GB/s   -> teacher ~21s
+#   page cache                              8.2 GB/s
+# That 1.8h is what killed the 23:36 run: sglang_engine.py's 1800s init timeout fired at
+# shard 5 of 16 with a bare _queue.Empty and no error at all from the engine subprocess.
+#
+# Staging on /scratch beats warming page cache on the three axes that matter here:
+#   1. RAM. Warming the teacher costs 57GB of page cache inside a 240GB cgroup, and the
+#      4-GPU config already OOM-killed once at the final save (see header). Staging is 0.
+#   2. Page cache is reclaimable, so a warm can evaporate right before the teacher reads
+#      it. A file on NVMe cannot.
+#   3. /scratch/$SLURM_JOB_ID lives as long as the job, so only the FIRST run pays the
+#      slow ceph copy. Restarts verify in seconds and reuse it.
+# Falls back to the page-cache warm if /scratch is missing, too full, or the copy fails
+# to verify. Never fatal: worst case we are back on the slow-but-working ceph path.
+SRC_HUB=${HF_HUB_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}/hub}
+SCRATCH_HUB=${SCRATCH_HUB:-/scratch/${SLURM_JOB_ID:-}/hub}
+
+hf_snapshot_dir() {
+  local repo=$1
+  if [ -d "$repo" ]; then echo "$repo"; return; fi
+  ls -d "${SRC_HUB}"/models--"${repo//\//--}"/snapshots/*/ 2>/dev/null | head -1
+}
+
+# Concurrency is the whole trick here, not block size. Do NOT "simplify" this to a `cat`,
+# that is the 6.5 MB/s path. 4 files in flight x 16 chunk readers each = 64 concurrent.
 warm_page_cache() {
-  local dir=$1 readers=16 f sz chunk i
+  local dir=$1 readers=16 files_at_once=4 f sz chunk i n=0
   set +x
   for f in "$dir"/*.safetensors; do
     [ -f "$f" ] || continue
@@ -328,22 +359,91 @@ warm_page_cache() {
     for i in $(seq 0 $((readers - 1))); do
       dd if="$f" of=/dev/null bs=4M count=$chunk skip=$((i * chunk)) 2>/dev/null &
     done
-    wait || true
+    n=$((n + 1))
+    [ $((n % files_at_once)) -eq 0 ] && { wait || true; }
   done
+  wait || true
   set -x
 }
 
-if [ -d "${STUDENT_MODEL}" ]; then
-  STUDENT_CACHE_DIR=${STUDENT_MODEL}
+# "<file count> <total bytes>" over REGULAR files only. Symlinks are skipped on purpose:
+# an HF cache keeps the real data in blobs/ and snapshots/ is only relative symlinks into
+# it, so counting both would double every model and never match.
+dir_fingerprint() {
+  find "$1" -type f -printf '%s\n' 2>/dev/null | awk '{n++; s+=$1} END {printf "%d %d\n", n+0, s+0}'
+}
+
+# Copy one HF model tree to scratch. Warms it into page cache first so the cp reads from
+# RAM at GB/s instead of crawling ceph a second time. Returns 0 only if the copy verifies.
+stage_to_scratch() {
+  local repo=$1 name src dst fp_src fp_dst t0
+  name=models--${repo//\//--}
+  src=${SRC_HUB}/${name}
+  dst=${SCRATCH_HUB}/${name}
+  [ -d "$src" ] || { echo "WARN: ${repo} not under ${SRC_HUB}, cannot stage" >&2; return 1; }
+  # rm -rf guard: dst must look exactly like a staging path we built, never anything else.
+  case "$dst" in /scratch/*/hub/models--*) ;; *) echo "WARN: refusing to touch ${dst}" >&2; return 1;; esac
+
+  fp_src=$(dir_fingerprint "$src")
+  if [ -d "$dst" ] && [ "$(dir_fingerprint "$dst")" = "$fp_src" ]; then
+    echo "already staged, reusing: ${dst}  [${fp_src}]"
+    return 0
+  fi
+
+  echo "warming ${repo} into page cache before the copy"
+  time warm_page_cache "$(hf_snapshot_dir "$repo")"
+  echo "copying ${repo} -> ${dst}"
+  rm -rf "$dst"
+  mkdir -p "${SCRATCH_HUB}"
+  t0=$SECONDS
+  cp -a "$src" "$dst" || { echo "WARN: cp failed for ${repo}" >&2; rm -rf "$dst"; return 1; }
+  echo "copy took $((SECONDS - t0))s"
+
+  fp_dst=$(dir_fingerprint "$dst")
+  if [ "$fp_dst" != "$fp_src" ]; then
+    echo "WARN: staged copy mismatch for ${repo}: src=[${fp_src}] dst=[${fp_dst}]" >&2
+    rm -rf "$dst"
+    return 1
+  fi
+  echo "staged OK: ${repo}  [${fp_src}]"
+}
+
+STAGED_OK=1
+SCRATCH_AVAIL_GB=0
+[ -n "${SLURM_JOB_ID:-}" ] && [ -d "/scratch/${SLURM_JOB_ID}" ] && \
+  SCRATCH_AVAIL_GB=$(df -PBG "/scratch/${SLURM_JOB_ID}" | awk 'NR==2 {gsub(/G/,"",$4); print $4+0}')
+
+if [ "${SCRATCH_AVAIL_GB}" -ge 100 ]; then
+  echo "==== STAGING WEIGHTS ON LOCAL NVME (${SCRATCH_AVAIL_GB}G free) ===="
+  for STAGE_MODEL in "${STUDENT_MODEL}" "${TEACHER_MODEL}"; do
+    stage_to_scratch "${STAGE_MODEL}" || STAGED_OK=0
+  done
 else
-  STUDENT_CACHE_DIR=$(ls -d ${HF_HOME:-$HOME/.cache/huggingface}/hub/models--${STUDENT_MODEL//\//--}/snapshots/*/ 2>/dev/null | head -1)
+  echo "no usable /scratch/\${SLURM_JOB_ID} (${SCRATCH_AVAIL_GB}G free), falling back to page cache"
+  STAGED_OK=0
 fi
-if [ -n "${STUDENT_CACHE_DIR}" ] && [ -d "${STUDENT_CACHE_DIR}" ]; then
-  echo "==== WARMING STUDENT WEIGHTS ===="
-  echo "dir: ${STUDENT_CACHE_DIR}"
-  time warm_page_cache "${STUDENT_CACHE_DIR}"
+
+if [ "${STAGED_OK}" = "1" ]; then
+  # Symlink every OTHER hub entry back to ceph. Without this, pointing HF_HUB_CACHE at a
+  # scratch dir that holds only the two models makes huggingface think the DATASET is
+  # missing and re-download it, turning a working offline path into a network dependency.
+  for HUB_ENTRY in "${SRC_HUB}"/*; do
+    [ -e "${HUB_ENTRY}" ] || continue
+    [ -e "${SCRATCH_HUB}/$(basename "${HUB_ENTRY}")" ] || ln -s "${HUB_ENTRY}" "${SCRATCH_HUB}/"
+  done
+  export HF_HUB_CACHE=${SCRATCH_HUB}
+  echo "HF_HUB_CACHE=${HF_HUB_CACHE}  (weights now load from NVMe at ~2.7 GB/s)"
 else
-  echo "WARN: student weights not in HF cache, skipping warm (first load will be slow)" >&2
+  echo "==== FALLBACK: warming weights into page cache ===="
+  for WARM_MODEL in "${STUDENT_MODEL}" "${TEACHER_MODEL}"; do
+    WARM_DIR=$(hf_snapshot_dir "${WARM_MODEL}")
+    if [ -n "${WARM_DIR}" ] && [ -d "${WARM_DIR}" ]; then
+      echo "warming ${WARM_MODEL}"
+      time warm_page_cache "${WARM_DIR}"
+    else
+      echo "WARN: ${WARM_MODEL} not in HF cache, skipping warm (first load will be slow)" >&2
+    fi
+  done
 fi
 
 # =========================

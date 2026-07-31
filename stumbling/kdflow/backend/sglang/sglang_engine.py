@@ -218,8 +218,19 @@ class SGLangEngineService:
         self._zmq_ctx: Optional[zmq.Context] = None
         self._data_socket = None
 
-    def start(self, timeout: float = 1800.0):
-        """Start the SGLang Engine in a subprocess."""
+    def start(self, timeout: float = float(os.environ.get("KDFLOW_ENGINE_INIT_TIMEOUT", 1800.0))):
+        """Start the SGLang Engine in a subprocess.
+
+        Timeout is env-overridable because 1800s is not enough for a 57GB teacher on a
+        slow network filesystem. sglang loads shards sequentially and single-threaded, so
+        it is latency-bound, not bandwidth-bound: measured 8 MB/s on ceph 2026-07-30,
+        which is ~1.8h for 16 shards. The run died at exactly 30 min with a bare
+        _queue.Empty out of line 241 and NO error from the engine subprocess, which reads
+        like a crash but is just this clock. Warming the weights into page cache first is
+        the real fix; this is the margin. Default is unchanged, so nothing moves unless
+        KDFLOW_ENGINE_INIT_TIMEOUT is set. Only teacher_actor.py:72 calls this, with no
+        timeout arg.
+        """
         if self._started:
             raise RuntimeError("Service already started")
 
