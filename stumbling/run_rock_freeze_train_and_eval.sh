@@ -18,9 +18,20 @@
 # entire purpose is to be the matched-conditions anchor for the 6 already-
 # completed ablations, which all used that same config. Changing it here
 # would undermine the comparison this run exists to provide.
+# Self-logging: guarantees a non-overwritable record of every run regardless
+# of whether the caller remembers `tee` (or remembers `tee -a` specifically --
+# plain `tee` overwrites, which already cost us one crash's error message).
+# Every invocation gets its own timestamped file, and still prints to the
+# terminal live via process substitution.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_DIR="${SCRIPT_DIR}/logs"
+mkdir -p "${LOG_DIR}"
+RUN_LOG="${LOG_DIR}/rock_freeze_train_eval_$(date +%Y%m%d_%H%M%S).log"
+exec > >(tee "${RUN_LOG}") 2>&1
+echo "Logging this run to: ${RUN_LOG}"
+
 set -u
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EVAL_DIR="$(cd "${SCRIPT_DIR}/../evaluation" && pwd)"
 CHECKPOINT_DIR="/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token-checkpoints/rock_freeze"
 
