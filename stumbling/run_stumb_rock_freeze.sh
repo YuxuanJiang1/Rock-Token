@@ -59,7 +59,27 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON=${SCRIPT_DIR}/../.venv/bin/python
 RAY=${SCRIPT_DIR}/../.venv/bin/ray
 
-export CUDA_HOME=/usr/local/cuda-12.8
+# Detect CUDA_HOME rather than hardcoding a toolkit version: flashinfer's JIT compile
+# derives nvcc's path directly from CUDA_HOME (not a PATH lookup), so a wrong version
+# here surfaces deep inside CUDA graph capture as "/usr/local/cuda-X.Y/bin/nvcc: not
+# found" -- hit exactly that with a hardcoded 12.8 on a box that didn't have it there.
+# Different Vast.ai instances have put the toolkit at different paths across this
+# session's runs, so search rather than assume.
+if [ -n "${CUDA_HOME:-}" ] && [ -x "${CUDA_HOME}/bin/nvcc" ]; then
+  :  # caller already set a working CUDA_HOME, keep it
+elif command -v nvcc >/dev/null 2>&1; then
+  CUDA_HOME=$(dirname "$(dirname "$(command -v nvcc)")")
+else
+  NVCC_PATH=$(find /usr/local -maxdepth 3 -type f -name nvcc 2>/dev/null | sort -V | tail -1)
+  if [ -n "${NVCC_PATH}" ]; then
+    CUDA_HOME=$(dirname "$(dirname "${NVCC_PATH}")")
+  else
+    echo "FATAL: nvcc not found on PATH or under /usr/local -- cannot set CUDA_HOME." >&2
+    exit 1
+  fi
+fi
+export CUDA_HOME
+echo "Detected CUDA_HOME=${CUDA_HOME}"
 
 # Put the venv's own bin/ ahead of CUDA_HOME/bin on PATH: sglang's JIT-compiled
 # kernels (flashinfer etc.) shell out to `ninja`, and a missing/wrong ninja on
