@@ -5,6 +5,7 @@ Port allocation is done centrally by RolloutGroup via _get_current_node_ip_and_f
 
 import ipaddress
 import multiprocessing
+import os
 import socket
 import time
 from typing import Optional
@@ -307,8 +308,17 @@ class RolloutRayActor:
         return p
 
     @staticmethod
-    def _wait_server_healthy(base_url: str, is_process_alive, timeout: float = 600.0):
-        """Wait until the SGLang server is healthy and ready to serve requests."""
+    def _wait_server_healthy(base_url: str, is_process_alive, timeout: Optional[float] = None):
+        """Wait until the SGLang server is healthy and ready to serve requests.
+
+        timeout defaults to KDFLOW_SERVER_HEALTH_TIMEOUT (600s if unset), read at call
+        time rather than as a mutable default argument -- a default argument value is
+        bound once when this function is defined (i.e. on module import in whatever
+        process first imports it), so it would silently ignore an env var set by the
+        launcher script after that process's Python interpreter already started.
+        """
+        if timeout is None:
+            timeout = float(os.environ.get("KDFLOW_SERVER_HEALTH_TIMEOUT", 600.0))
         start_time = time.time()
         with requests.Session() as session:
             while True:
