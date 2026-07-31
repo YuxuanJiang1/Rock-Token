@@ -266,6 +266,19 @@ TEACHER_QUANT_ARG=${TEACHER_QUANT_ARG:-}
 export TOKENIZERS_PARALLELISM=false
 export PYTHONUNBUFFERED=1
 
+# ROLLOUT STARTUP TIMEOUT. The 600s default (rollout_actor.py:314) killed two runs on
+# 2026-07-30, 21:08 and 22:43. Neither crashed and neither OOM'd: the rollout worker's
+# own stderr just stops mid "Loading safetensors checkpoint shards" (2/3 at 22:49, timeout
+# fired 22:55) with no error line at all. Cause is the engine count, not any memory knob:
+# arguments/__init__.py:90 forces num_engines = num_gpus // rollout_tp = 4, and each of the
+# 4 servers reads its OWN full 7.6GB copy of the student => 30GB of cold ceph at startup.
+# Measured ceph 2026-07-30: 6.5 MB/s single stream, 41 MB/s at 8 parallel readers, 68 MB/s
+# at 16, versus 8.2 GB/s once the file is in page cache. 30GB does not fit in 600s.
+# warm_page_cache below is the actual fix; this is only the margin for when ceph is slow.
+# The teacher does NOT need this: it uses the in-process sglang Engine, not the HTTP
+# server, so it has no health timeout at all (which is why it survived the same slow ceph).
+export KDFLOW_SERVER_HEALTH_TIMEOUT=${KDFLOW_SERVER_HEALTH_TIMEOUT:-2400}
+
 unset RAY_ADDRESS
 unset ip_head
 unset RAY_NAMESPACE
@@ -294,6 +307,44 @@ mkdir -p ${SAVE_DIR}
 export PYTHONPATH=${KD_ROOT}:${NEW_RUNNER_DIR}:$PYTHONPATH
 
 cd ${KD_ROOT}
+
+# =========================
+# Warm student weights into page cache
+# =========================
+# All 4 rollout engines read the student checkpoint independently, so without this the
+# same 7.6GB crosses ceph 4 times while the health timeout is already counting down.
+# One pass up front costs ~2 min and every engine then reads it from RAM at GB/s.
+# Parallel chunks, NOT `cat`: this mount is latency-bound, not bandwidth-bound. A single
+# stream gets 6.5 MB/s, 16 concurrent readers on the SAME file get 68 MB/s (10x).
+# Best effort. If the path does not resolve we fall through and let
+# KDFLOW_SERVER_HEALTH_TIMEOUT absorb the slow load instead of failing the run.
+warm_page_cache() {
+  local dir=$1 readers=16 f sz chunk i
+  set +x
+  for f in "$dir"/*.safetensors; do
+    [ -f "$f" ] || continue
+    sz=$(stat -Lc %s "$f")               # -L: HF cache entries are symlinks into blobs/
+    chunk=$(( (sz / 4194304 + readers) / readers ))   # 4MiB blocks per reader, rounded up
+    for i in $(seq 0 $((readers - 1))); do
+      dd if="$f" of=/dev/null bs=4M count=$chunk skip=$((i * chunk)) 2>/dev/null &
+    done
+    wait || true
+  done
+  set -x
+}
+
+if [ -d "${STUDENT_MODEL}" ]; then
+  STUDENT_CACHE_DIR=${STUDENT_MODEL}
+else
+  STUDENT_CACHE_DIR=$(ls -d ${HF_HOME:-$HOME/.cache/huggingface}/hub/models--${STUDENT_MODEL//\//--}/snapshots/*/ 2>/dev/null | head -1)
+fi
+if [ -n "${STUDENT_CACHE_DIR}" ] && [ -d "${STUDENT_CACHE_DIR}" ]; then
+  echo "==== WARMING STUDENT WEIGHTS ===="
+  echo "dir: ${STUDENT_CACHE_DIR}"
+  time warm_page_cache "${STUDENT_CACHE_DIR}"
+else
+  echo "WARN: student weights not in HF cache, skipping warm (first load will be slow)" >&2
+fi
 
 # =========================
 # Reset Ray
