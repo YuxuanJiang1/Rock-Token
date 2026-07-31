@@ -48,6 +48,14 @@ if [ -f "${CHECKPOINT_DIR}/config.json" ] && [ "${FORCE_RETRAIN}" != "1" ]; then
   echo "Checkpoint already exists at ${CHECKPOINT_DIR}/config.json -- skipping training."
   echo "(FORCE_RETRAIN=1 to redo it anyway.)"
 else
+  if [ "${FORCE_RETRAIN}" = "1" ] && [ -d "${CHECKPOINT_DIR}/ckpt" ]; then
+    # run_stumb_rock_freeze.sh passes --load_checkpoint True unconditionally, so
+    # without this, FORCE_RETRAIN=1 would silently resume from whatever's in
+    # ckpt/ instead of actually starting over -- clearing it is what makes
+    # FORCE_RETRAIN mean what it says.
+    echo "FORCE_RETRAIN=1: removing ${CHECKPOINT_DIR}/ckpt so training starts clean."
+    rm -rf "${CHECKPOINT_DIR}/ckpt"
+  fi
   chmod +x "${SCRIPT_DIR}/run_stumb_rock_freeze.sh"
   "${SCRIPT_DIR}/run_stumb_rock_freeze.sh"
   TRAIN_EXIT=$?
