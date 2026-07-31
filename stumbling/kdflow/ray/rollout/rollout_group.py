@@ -3,6 +3,7 @@ import base64
 import io
 import logging
 import multiprocessing
+import os
 import random
 import signal
 import socket
@@ -115,6 +116,14 @@ class RolloutActorGroup:
             name: "1" for name in NOSET_VISIBLE_DEVICES_ENV_VARS_LIST
         }
         env_vars.update(SGLANG_ENV_VARS)
+        # Explicit passthrough for the launcher shell's toolchain vars (PATH/CUDA_HOME/
+        # LD_LIBRARY_PATH/CPATH): sglang's internal scheduler subprocess shells out to
+        # nvcc/ninja for JIT kernel compilation, and exit code 127 ("command not found")
+        # there leaves the outer launch_server wrapper alive while the server never
+        # becomes healthy, burning the full health-check timeout before failing.
+        for var in ("PATH", "CUDA_HOME", "LD_LIBRARY_PATH", "CPATH"):
+            if var in os.environ:
+                env_vars[var] = os.environ[var]
 
         num_gpu_per_engine = min(self.num_gpus_per_actor_engine, self.num_gpus_per_node)
 
