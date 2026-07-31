@@ -67,13 +67,23 @@ export CUDA_HOME=/usr/local/cuda-12.8
 # the point where it's obvious what failed. sglang[all] pulls in a pip ninja
 # into the venv, so this makes sure that's the one found.
 export PATH=${SCRIPT_DIR}/../.venv/bin:$CUDA_HOME/bin:$PATH
-export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 export CPATH=$CUDA_HOME/targets/x86_64-linux/include:$CPATH
+
+# libcudart.so.12 lookup. $CUDA_HOME/lib64 doesn't always actually ship the runtime .so
+# on pip-based CUDA setups -- the toolkit dir can have nvcc/headers only, with the real
+# runtime coming from the nvidia-cuda-runtime-cu12 wheel inside the venv instead. This
+# bit us as "error while loading shared libraries: libcudart.so.12" deep inside sglang's
+# scheduler subprocess (it execs a fresh python3 under the sleep-mode LD_PRELOAD hook,
+# which needs libcudart resolvable via LD_LIBRARY_PATH *before* torch's own RPATH-based
+# resolution ever gets a chance to run). Cover both possible locations.
+NVIDIA_PIP_LIB_DIRS=$(find "${SCRIPT_DIR}/../.venv/lib" -type d -path '*/nvidia/*/lib' 2>/dev/null | paste -sd: -)
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64${NVIDIA_PIP_LIB_DIRS:+:$NVIDIA_PIP_LIB_DIRS}:$LD_LIBRARY_PATH
 
 echo "==== TOOLCHAIN CHECK ===="
 echo "as    -> $(command -v as || echo MISSING)"
 echo "ld    -> $(command -v ld || echo MISSING)"
 echo "ninja -> $(command -v ninja || echo 'MISSING (JIT kernel compilation will fail)')"
+echo "libcudart.so.12 -> $(find $(echo $LD_LIBRARY_PATH | tr ':' ' ') -maxdepth 1 -name 'libcudart.so.12' 2>/dev/null | head -1 || echo MISSING)"
 
 export HF_HOME=${HF_HOME:-/workspace/hf_cache}
 mkdir -p "$HF_HOME"
