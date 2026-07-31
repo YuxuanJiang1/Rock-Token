@@ -33,7 +33,7 @@ echo "Logging this run to: ${RUN_LOG}"
 set -u
 
 EVAL_DIR="$(cd "${SCRIPT_DIR}/../evaluation" && pwd)"
-CHECKPOINT_DIR="/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token-checkpoints/rock_freeze"
+CHECKPOINT_DIR="/workspace/Rock-Token-checkpoints/rock_freeze"
 
 export MAX_SAMPLES=${MAX_SAMPLES:-1000}
 NUM_SEEDS=${NUM_SEEDS:-3}

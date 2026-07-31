@@ -35,13 +35,16 @@ set -x
 # regardless of what cwd this was launched from.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-PYTHON=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token/.venv/bin/python
-RAY=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token/.venv/bin/ray
+PYTHON=${SCRIPT_DIR}/../.venv/bin/python
+RAY=${SCRIPT_DIR}/../.venv/bin/ray
 
 export CUDA_HOME=/usr/local/cuda-12.8
 export PATH=$CUDA_HOME/bin:$PATH
 export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 export CPATH=$CUDA_HOME/targets/x86_64-linux/include:$CPATH
+
+export HF_HOME=${HF_HOME:-/workspace/hf_cache}
+mkdir -p "$HF_HOME"
 
 export CUDA_VISIBLE_DEVICES=0,1
 export TOKENIZERS_PARALLELISM=false
@@ -62,13 +65,13 @@ echo "CUDA_HOME=$CUDA_HOME"
 # =========================
 # Paths
 # =========================
-KD_ROOT=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token/stumbling
+KD_ROOT=${SCRIPT_DIR}
 NEW_RUNNER_DIR=${KD_ROOT}/new_runner
 
 STUDENT_MODEL=Qwen/Qwen3-4B-Instruct-2507
 TEACHER_MODEL=Qwen/Qwen3-30B-A3B-Instruct-2507
 TRAIN_DATA=RockToken/openthoughts_prompt_math_5k_src30k-35k
-SAVE_DIR=/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token-checkpoints/top_gradalign
+SAVE_DIR=/workspace/Rock-Token-checkpoints/top_gradalign
 
 mkdir -p ${SAVE_DIR}
 

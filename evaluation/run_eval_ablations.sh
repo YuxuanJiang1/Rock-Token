@@ -31,8 +31,10 @@ mkdir -p "${LOG_DIR}" "${EVAL_OUT}"
 export CUDA_VISIBLE_DEVICES=0,1
 export TOKENIZERS_PARALLELISM=false
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
+export HF_HOME=${HF_HOME:-/workspace/hf_cache}
+mkdir -p "$HF_HOME"
 
-CHECKPOINTS_ROOT="/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token-checkpoints"
+CHECKPOINTS_ROOT="/workspace/Rock-Token-checkpoints"
 CHECKPOINT_NAMES=(top_freq top_meanloss top_gradmag top_gradalign soft_lambda_3 soft_lambda_5 soft_lambda_7)
 # Override to test a subset first, e.g.: CHECKPOINT_NAMES=(top_meanloss) ./run_eval_ablations.sh
 if [ "${CHECKPOINTS:-}" != "" ]; then

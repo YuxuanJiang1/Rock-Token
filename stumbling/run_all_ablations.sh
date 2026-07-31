@@ -36,7 +36,7 @@ chmod +x "${SCRIPT_DIR}"/run_stumb_top_freq.sh \
          "${SCRIPT_DIR}"/run_stumb_gradalign.sh \
          "${SCRIPT_DIR}"/run_stumb_soft_lambda.sh
 
-mkdir -p /umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token-checkpoints
+mkdir -p /workspace/Rock-Token-checkpoints
 
 FORCE_RERUN=${FORCE_RERUN:-0}
 CONTINUE_ON_ERROR=${CONTINUE_ON_ERROR:-0}
@@ -81,4 +81,4 @@ echo ""
 echo "==== ALL DONE ===="
 echo "Per-run logs:   ${LOG_DIR}/<name>.log"
 echo "Done markers:   ${LOG_DIR}/<name>.done"
-echo "Checkpoints in: /umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token-checkpoints/"
+echo "Checkpoints in: /workspace/Rock-Token-checkpoints/"
