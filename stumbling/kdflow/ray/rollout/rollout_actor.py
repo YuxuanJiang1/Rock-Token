@@ -5,6 +5,7 @@ Port allocation is done centrally by RolloutGroup via _get_current_node_ip_and_f
 
 import ipaddress
 import multiprocessing
+import os
 import socket
 import time
 from typing import Optional
@@ -307,8 +308,22 @@ class RolloutRayActor:
         return p
 
     @staticmethod
-    def _wait_server_healthy(base_url: str, is_process_alive, timeout: float = 600.0):
-        """Wait until the SGLang server is healthy and ready to serve requests."""
+    def _wait_server_healthy(
+        base_url: str,
+        is_process_alive,
+        timeout: float = float(os.environ.get("KDFLOW_SERVER_HEALTH_TIMEOUT", 600.0)),
+    ):
+        """Wait until the SGLang server is healthy and ready to serve requests.
+
+        Timeout is env-overridable because 600s is not always enough on this cluster:
+        the venv lives on ceph, and a cold page cache makes the sglang server's import
+        walk (torch + sglang + vllm + openai, tens of thousands of small files) take
+        ~19 min, which blew the 600s budget and killed the run with
+        "Server at ... failed to become healthy within 600.0s" -- no OOM, nothing
+        actually wrong. It got worse after vllm was added to the venv for eval (+73
+        packages). Warming the cache first is the real fix; this is the safety margin.
+        Set KDFLOW_SERVER_HEALTH_TIMEOUT=2400 for a cold start.
+        """
         start_time = time.time()
         with requests.Session() as session:
             while True:

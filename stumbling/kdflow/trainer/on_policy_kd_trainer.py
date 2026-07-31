@@ -128,9 +128,61 @@ class OnPolicyKDTrainer:
         logger.info(f"  KD Algorithm:          {self.args.kd.kd_algorithm}")
         logger.info(f"  KD Loss Function:      {self.args.kd.kd_loss_fn}")
     
+    def _save_resumable_checkpoint(self, epoch):
+        """Full checkpoint: model+optim+sched (actors) and step/dataloader (driver).
+
+        Order matters. Actors write first via an atomic rename, then the driver
+        adds trainer_state.pt. find_latest_ckpt requires trainer_state.pt, so a
+        crash part-way through leaves a dir that is correctly ignored rather
+        than half-loaded on the next resume.
+        """
+        keep_last = getattr(self.args.train, "keep_last_n_ckpt", 2)
+        t0 = time.time()
+        ckpt_dir = ray.get(self.student.async_save_checkpoint(self.global_step, keep_last))[0]
+
+        torch.save(
+            {
+                "global_step": self.global_step,
+                "epoch": epoch,
+                # StatefulDataLoader: restores the exact position in the epoch,
+                # so resume does not replay or skip prompts.
+                "dataloader": self.train_dataloader.state_dict(),
+            },
+            os.path.join(ckpt_dir, "trainer_state.pt"),
+        )
+        self.strategy.log(
+            f"Saved checkpoint {ckpt_dir} in {time.time() - t0:.1f}s (keeping last {keep_last})"
+        )
+
+    def _maybe_resume(self):
+        """Return (global_step, epoch, dataloader_state) from the newest complete
+        checkpoint, or None when there is nothing to resume."""
+        if not getattr(self.args.train, "load_checkpoint", False):
+            return None
+        latest = self.student.find_latest_checkpoint()
+        if latest is None:
+            self.strategy.log("load_checkpoint set but no checkpoint found; starting from scratch")
+            return None
+
+        step, ckpt_dir = latest
+        self.strategy.log(f"Resuming from {ckpt_dir}")
+        ray.get(self.student.async_load_checkpoint(ckpt_dir))
+        state = torch.load(
+            os.path.join(ckpt_dir, "trainer_state.pt"), map_location="cpu", weights_only=False
+        )
+        self.strategy.log(
+            f"Resumed at global_step={state['global_step']}, epoch={state['epoch']}"
+        )
+        return state["global_step"], state["epoch"], state["dataloader"]
+
     def fit(self, global_step=0, start_epoch=0):
+        resumed = self._maybe_resume()
+        pending_dataloader_state = None
+        if resumed is not None:
+            global_step, start_epoch, pending_dataloader_state = resumed
+
         self.global_step = global_step
-        
+
         # Print training configuration and initialize loggers
         self._print_training_config()
 
@@ -147,7 +199,14 @@ class OnPolicyKDTrainer:
         for epoch in range(start_epoch, self.epochs):
             self.current_epoch = epoch
             self.train_dataloader.sampler.set_epoch(epoch)
-            
+
+            # Restore position AFTER set_epoch: set_epoch reseeds the sampler,
+            # which would otherwise wipe the restored offset. Only the first
+            # epoch after a resume is fast-forwarded.
+            if pending_dataloader_state is not None:
+                self.train_dataloader.load_state_dict(pending_dataloader_state)
+                pending_dataloader_state = None
+
             for prompt_batch in self.train_dataloader:
                 self.global_step += 1
                 
@@ -224,13 +283,20 @@ class OnPolicyKDTrainer:
                 self.logging()
                 
                 if self.global_step % self.args.train.save_steps == 0:
-                    self.strategy.log(f"Saving model at global step {self.global_step}")
-                    save_path = os.path.join(self.args.train.save_path, f"epoch_{epoch + 1}_global_step_{self.global_step}")
-                    ray.get(self.student.async_save_model(save_path))
-        
+                    self._save_resumable_checkpoint(epoch)
+
             # save model after each epoch
             self.strategy.log(f"Saving model after epoch {epoch + 1}")
             save_path = os.path.join(self.args.train.save_path, f"epoch_{epoch + 1}")
+            if self.args.train.enable_sleep:
+                # The loop leaves the student asleep, i.e. params and optimizer
+                # states parked in HOST ram. save_model then gathers the full
+                # model to host on every rank on top of that, which overran the
+                # 200GB cgroup and got the actor OOM-killed after a full run.
+                # Waking first moves those shards back to GPU (which is idle
+                # here, teacher and rollout are asleep) and frees the host room
+                # the gather needs.
+                self.student.wakeup()
             ray.get(self.student.async_save_model(save_path))
 
         total_time = time.time() - self.start_time

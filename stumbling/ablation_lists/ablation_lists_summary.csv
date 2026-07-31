@@ -1,0 +1,5 @@
+list,n_tokens,jaccard_with_rock
+top_freq,100,0.5503875968992248
+top_meanloss,100,0.0
+top_gradmag,100,0.0
+top_gradalign,100,0.010101010101010102

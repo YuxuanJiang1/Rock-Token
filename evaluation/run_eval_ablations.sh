@@ -32,6 +32,38 @@ export CUDA_VISIBLE_DEVICES=0,1
 export TOKENIZERS_PARALLELISM=false
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
 
+# Pin the interpreter instead of trusting PATH. `python` has resolved to a DIFFERENT
+# venv at different times today (.venv vs .venv-train), and .venv-train had no lm_eval
+# at all, so a PATH-dependent eval silently ran against the wrong stack.
+# .venv-train is now the unified env: torch 2.9.1 + sglang 0.5.9 (train) AND
+# vllm 0.16.0 + lm_eval (eval). vllm 0.14-0.16 pin torch==2.9.1, which is what makes
+# one venv possible; vllm >=0.20 pins torch==2.11.0 and cannot coexist with sglang.
+VENV_DIR=${VENV_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)/.venv-train}
+PY="${VENV_DIR}/bin/python"
+[ -x "$PY" ] || { echo "ERROR: $PY not found or not executable." >&2; exit 1; }
+
+# The .eval_overlay + VLLM_USE_FLASHINFER_SAMPLER=0 workarounds exist ONLY for
+# vllm 0.26.0 in .venv, where three things were installed-but-broken:
+#   openai 2.6.1     -> missing NamespaceTool, dies at `from vllm import LLM`
+#   flashinfer       -> python 0.6.14 vs cubin 0.6.3, RuntimeError on any import
+#   flash_attn       -> built for torch 2.9, ABI-broken against torch 2.11
+# .venv-train has all three healthy, so forcing the overlay there would needlessly
+# hide working components and disable the flashinfer sampler for no reason.
+# Probe rather than assume: apply the overlay only if vllm cannot import without it.
+if "$PY" -c "from vllm import LLM" >/dev/null 2>&1; then
+  echo "vllm imports cleanly in ${VENV_DIR} -- no overlay needed"
+else
+  EVAL_OVERLAY="$(cd "${SCRIPT_DIR}/.." && pwd)/.eval_overlay"
+  if [ ! -d "${EVAL_OVERLAY}/openai" ]; then
+    echo "ERROR: vllm will not import and ${EVAL_OVERLAY} is missing. Recreate with:" >&2
+    echo "  uv pip install --python ${PY} --target ${EVAL_OVERLAY} --no-deps openai==2.25.0" >&2
+    exit 1
+  fi
+  echo "vllm needs the compat overlay -- enabling ${EVAL_OVERLAY}"
+  export PYTHONPATH="${EVAL_OVERLAY}${PYTHONPATH:+:${PYTHONPATH}}"
+  export VLLM_USE_FLASHINFER_SAMPLER=0
+fi
+
 CHECKPOINTS_ROOT="/umbc/rs/pi_ferraro/ada/users/sroydip1/collab/Rock-Token-checkpoints"
 CHECKPOINT_NAMES=(top_freq top_meanloss top_gradmag top_gradalign soft_lambda_3 soft_lambda_5 soft_lambda_7)
 # Override to test a subset first, e.g.: CHECKPOINT_NAMES=(top_meanloss) ./run_eval_ablations.sh
@@ -44,8 +76,8 @@ NUM_SEEDS=${NUM_SEEDS:-1}
 FORCE_RERUN=${FORCE_RERUN:-0}
 
 echo "==== ENV CHECK ===="
-python -V
-python -c "import lm_eval, vllm; print('lm_eval', lm_eval.__version__); print('vllm', vllm.__version__)"
+"$PY" -V
+"$PY" -c "import lm_eval, vllm, openai; print('lm_eval', lm_eval.__version__); print('vllm', vllm.__version__); print('openai', openai.__version__, '(overlay)' if 'eval_overlay' in openai.__file__ else '(venv)')"
 nvidia-smi --query-gpu=index,name,memory.total,memory.used --format=csv
 echo "Checkpoints: ${CHECKPOINT_NAMES[*]}"
 echo "Seeds: NUM_SEEDS=${NUM_SEEDS}"
@@ -76,7 +108,7 @@ for NAME in "${CHECKPOINT_NAMES[@]}"; do
     echo "============================================================"
 
     START=$(date +%s)
-    if python -m lm_eval \
+    if "$PY" -m lm_eval \
         --model vllm \
         --model_args "pretrained=${MODEL},dtype=bfloat16,tensor_parallel_size=2,gpu_memory_utilization=0.9,max_model_len=20000,enforce_eager=False" \
         --tasks ${TASKS} \
@@ -101,7 +133,7 @@ echo "============================================================"
 echo "  AGGREGATING RESULTS  $(date)"
 echo "============================================================"
 
-python - "${EVAL_OUT}" "${NUM_SEEDS}" "${CHECKPOINT_NAMES[@]}" << 'PY'
+"$PY" - "${EVAL_OUT}" "${NUM_SEEDS}" "${CHECKPOINT_NAMES[@]}" << 'PY'
 import json, glob, statistics, os, sys
 
 eval_out = sys.argv[1]

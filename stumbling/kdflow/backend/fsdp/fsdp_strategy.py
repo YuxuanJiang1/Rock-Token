@@ -20,9 +20,12 @@ from torch.distributed.fsdp import (
     CPUOffloadPolicy,
 )
 from torch.distributed.tensor import DTensor
+import torch.distributed.checkpoint as dcp
 from torch.distributed.checkpoint.state_dict import (
     get_model_state_dict,
     set_model_state_dict,
+    get_optimizer_state_dict,
+    set_optimizer_state_dict,
     StateDictOptions,
 )
 from torchdata.stateful_dataloader import StatefulDataLoader
@@ -384,13 +387,28 @@ class FSDP2Strategy(ABC):
         options = StateDictOptions(full_state_dict=True, cpu_offload=True)
         
         state_dict = get_model_state_dict(model_to_save, options=options)
-        
+
         if self.args.train.bf16:
-            state_dict = {
-                k: v.to(torch.bfloat16) if torch.is_floating_point(v) else v
-                for k, v in state_dict.items()
-            }
-        
+            # In place, one tensor at a time. Building a second dict via a
+            # comprehension holds the whole fp32 AND the whole bf16 copy at once,
+            # which OOM-killed the actor at end of epoch (job cap 200GB, and the
+            # gather already lands on every rank). Rebinding per key lets each
+            # fp32 tensor be freed as soon as its bf16 copy exists.
+            for k in list(state_dict.keys()):
+                v = state_dict[k]
+                if torch.is_floating_point(v):
+                    state_dict[k] = v.to(torch.bfloat16)
+                    del v
+
+        # Non-rank-0 ranks took part in the collective gather but never write.
+        # Drop their copy now instead of holding it through save_pretrained.
+        if not self.is_rank_0():
+            del state_dict
+            gc.collect()
+            torch_dist_barrier_and_cuda_sync()
+            return
+
+
         if self.is_rank_0():
             if isinstance(model_to_save, PeftModel):
                 model_to_save.save_pretrained(output_dir, **kwargs)
@@ -409,7 +427,107 @@ class FSDP2Strategy(ABC):
         del state_dict
         gc.collect()
         torch_dist_barrier_and_cuda_sync()
-    
+
+    def save_ckpt(self, model, optimizer, scheduler, ckpt_dir, keep_last: int = 2) -> None:
+        """Full resumable checkpoint: model + optimizer + scheduler.
+
+        SHARDED on purpose. Do NOT switch this to full_state_dict=True: that
+        gathers the whole model AND the whole Adam state (m+v fp32, ~8 bytes per
+        param) into one process. For the 4B student that is ~40GB on top of a job
+        that already runs near its cgroup cap, and the OOM killer takes out the
+        actor mid-save. Sharded means each rank writes only the shard it already
+        holds, so the save costs almost no extra memory.
+
+        DCP writes .metadata last, which is what marks the dir complete.
+        """
+        model_to_save = self._unwrap_model(model)
+        options = StateDictOptions(full_state_dict=False, cpu_offload=False)
+
+        model_sd = get_model_state_dict(model_to_save, options=options)
+        optim_sd = get_optimizer_state_dict(model_to_save, optimizer, options=options)
+
+        dcp.save({"model": model_sd, "optim": optim_sd}, checkpoint_id=ckpt_dir)
+
+        if self.is_rank_0():
+            # tiny, and not sharded, so plain torch.save on rank 0 is fine
+            torch.save(scheduler.state_dict(), os.path.join(ckpt_dir, "scheduler.pt"))
+            self._rotate_ckpts(os.path.dirname(ckpt_dir), keep_last)
+
+        del model_sd, optim_sd
+        gc.collect()
+        torch_dist_barrier_and_cuda_sync()
+
+    def load_ckpt(self, model, optimizer, scheduler, ckpt_dir) -> None:
+        """Restore what save_ckpt wrote.
+
+        DCP loads in place: you hand it the CURRENT sharded state dict, it fills
+        those tensors from disk, then set_*_state_dict writes them back into the
+        live model and optimizer. That is why the model must already be built
+        and the optimizer already created before calling this.
+        """
+        model_to_save = self._unwrap_model(model)
+        options = StateDictOptions(full_state_dict=False, cpu_offload=False)
+
+        model_sd = get_model_state_dict(model_to_save, options=options)
+        optim_sd = get_optimizer_state_dict(model_to_save, optimizer, options=options)
+
+        dcp.load({"model": model_sd, "optim": optim_sd}, checkpoint_id=ckpt_dir)
+
+        set_model_state_dict(model_to_save, model_sd, options=options)
+        set_optimizer_state_dict(
+            model_to_save, optimizer, optim_state_dict=optim_sd, options=options
+        )
+
+        scheduler.load_state_dict(
+            torch.load(os.path.join(ckpt_dir, "scheduler.pt"), map_location="cpu", weights_only=False)
+        )
+
+        del model_sd, optim_sd
+        gc.collect()
+        torch_dist_barrier_and_cuda_sync()
+
+    @staticmethod
+    def _rotate_ckpts(root: str, keep_last: int) -> None:
+        """Delete all but the newest `keep_last` step_* dirs. Sorted by step
+        number, not mtime: NFS mtimes are not reliable enough to trust here."""
+        import shutil
+        if keep_last <= 0 or not os.path.isdir(root):
+            return
+        steps = []
+        for name in os.listdir(root):
+            if name.startswith("step_") and os.path.isdir(os.path.join(root, name)):
+                try:
+                    steps.append((int(name[len("step_"):]), name))
+                except ValueError:
+                    continue  # not one of ours, leave it alone
+        for _, name in sorted(steps, reverse=True)[keep_last:]:
+            shutil.rmtree(os.path.join(root, name), ignore_errors=True)
+
+    @staticmethod
+    def find_latest_ckpt(root: str):
+        """Newest complete step_* dir, or None. Used to auto-resume."""
+        if not os.path.isdir(root):
+            return None
+        best = None
+        for name in os.listdir(root):
+            if not name.startswith("step_"):
+                continue
+            d = os.path.join(root, name)
+            # .metadata is written by DCP only after every rank's shard lands;
+            # trainer_state.pt is written last of all, by the driver. Requiring
+            # both means a checkpoint killed mid-write is skipped rather than
+            # half-loaded on the next resume.
+            if not all(os.path.exists(os.path.join(d, f))
+                       for f in (".metadata", "scheduler.pt", "trainer_state.pt")):
+                continue
+            try:
+                step = int(name[len("step_"):])
+            except ValueError:
+                continue
+            if best is None or step > best[0]:
+                best = (step, d)
+        return best
+
     def all_reduce(self, data, op="mean"):
         assert op in ("mean", "max", "sum")
         if isinstance(data, dict):

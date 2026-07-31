@@ -131,7 +131,32 @@ class StudentActorGroup:
             List: list of remote object refs.
         """
         return [actor.save_model.remote(save_path) for actor in self._actor_handlers]
-    
+
+    def async_save_checkpoint(self, global_step, keep_last=2):
+        """Save a resumable checkpoint on every actor (rank 0 does the writing).
+
+        Returns:
+            List: list of remote object refs.
+        """
+        return [
+            actor.save_checkpoint.remote(global_step, keep_last)
+            for actor in self._actor_handlers
+        ]
+
+    def async_load_checkpoint(self, ckpt_dir):
+        """Restore model/optimizer/scheduler on every actor.
+
+        Returns:
+            List: list of remote object refs.
+        """
+        return [actor.load_checkpoint.remote(ckpt_dir) for actor in self._actor_handlers]
+
+    def find_latest_checkpoint(self):
+        """(step, dir) of the newest complete checkpoint, or None. Asks actor 0."""
+        import ray
+        return ray.get(self._actor_handlers[0].find_latest_checkpoint.remote())
+
+
     def async_run_distill(self, data):
         """ Send data to each distill worker and run distillation.
         

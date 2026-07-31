@@ -106,6 +106,13 @@ PY
 # =========================
 # Launch
 # =========================
+# teacher_mem_fraction_static: was 0.45, too small on this H100 NVL (93GB).
+# Teacher loads bf16 at ~43.9GB/GPU (the fp8 flag is NOT taking effect, measured
+# 2026-07-27), and sglang requires avail_mem - total*(1-frac) > 0. At 0.45 that
+# is 48.64 - 93.09*0.55 = -2.6GB, so it dies before allocating any KV cache,
+# even on an empty GPU. 0.75 leaves ~10GB KV with both rollout engines up.
+# NOTE: kdflow overrides --rollout_num_engines 1 -> 2 (one per GPU), so both
+# GPUs carry a rollout engine (~14.7GB each); that is budgeted for above.
 $PYTHON -m kdflow.cli.train_kd_on_policy \
   --num_nodes 1 \
   --num_gpus_per_node 2 \
@@ -119,6 +126,9 @@ $PYTHON -m kdflow.cli.train_kd_on_policy \
   --bf16 True \
   --gradient_checkpointing True \
   --save_path ${SAVE_DIR} \
+  --save_steps 50 \
+  --ckpt_path ${SAVE_DIR}/ckpt \
+  --load_checkpoint True \
   --student_name_or_path ${STUDENT_MODEL} \
   --teacher_name_or_path ${TEACHER_MODEL} \
   --enable_thinking True \
@@ -135,7 +145,7 @@ $PYTHON -m kdflow.cli.train_kd_on_policy \
   --teacher_pp_size 1 \
   --teacher_enable_sleep True \
   --teacher_forward_n_batches 1 \
-  --teacher_mem_fraction_static 0.45 \
+  --teacher_mem_fraction_static 0.75 \
   --rollout_num_engines 1 \
   --rollout_tp_size 1 \
   --rollout_batch_size 2 \

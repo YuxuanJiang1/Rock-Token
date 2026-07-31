@@ -153,15 +153,13 @@ class StudentRayActor:
                 )
                 strategy.print(f"Registered {len(projector_params)} projector params into optimizer with lr={projector_lr}")
 
-        # load checkpoint
+        # Resume is driven by the trainer (_maybe_resume), not from here: only
+        # the trainer holds the dataloader whose position also has to be
+        # restored. An OpenRLHF-era block used to auto-load here off a bare
+        # os.path.exists(ckpt_path); it never ran because the default ckpt_path
+        # never existed, and its strategy.load_ckpt signature no longer matches.
+        # Kept as an empty dict for get_checkpoint_states().
         self.checkpoint_states = {}
-        ckpt_path = self.args.train.ckpt_path
-        if os.path.exists(ckpt_path):
-            strategy.print(f"Loading the checkpoint: {ckpt_path}")
-            _, states = strategy.load_ckpt(self.student.model, ckpt_path)
-            self.checkpoint_states["global_step"] = states["global_step"]
-            self.checkpoint_states["epoch"] = states["epoch"]
-            self.checkpoint_states["data_loader_state_dict"] = states["data_loader_state_dict"]
 
         # initial offload
         if self.args.train.enable_sleep:
@@ -327,21 +325,28 @@ class StudentRayActor:
         self.teacher_lm_head = self.teacher_lm_head.cpu()
         self.strategy.offload_model_params(self.student, empty_cache=True)
 
-    def save_checkpoint(self, tag, client_states):
+    def save_checkpoint(self, global_step, keep_last=2):
+        """Save a resumable checkpoint (model + optimizer + scheduler).
+
+        Called on every actor; only rank 0 writes, the rest just participate in
+        the state-dict gather and the barrier inside save_ckpt.
+        """
+        ckpt_dir = os.path.join(self.args.train.ckpt_path, f"step_{global_step}")
         self.strategy.save_ckpt(
-            self.student.model,
-            os.path.join(self.args.train.ckpt_path, "_actor"),
-            tag,
-            self.args.train.max_ckpt_num,
-            self.args.train.max_ckpt_mem,
-            client_states,
+            self.student, self.optim, self.scheduler, ckpt_dir, keep_last=keep_last
         )
-        if self.save_hf_ckpt:
-            save_path = os.path.join(self.args.train.ckpt_path, f"{tag}_hf")
-            self.strategy.save_model(self.student, self.student.tokenizer, save_path)
-        # wait
-        torch_dist_barrier_and_cuda_sync()
-        
+        return ckpt_dir
+
+    def load_checkpoint(self, ckpt_dir):
+        """Restore model + optimizer + scheduler from a save_checkpoint dir."""
+        self.strategy.load_ckpt(self.student, self.optim, self.scheduler, ckpt_dir)
+        return ckpt_dir
+
+    def find_latest_checkpoint(self):
+        """(step, dir) of the newest complete checkpoint, or None."""
+        return self.strategy.find_latest_ckpt(self.args.train.ckpt_path)
+
+
     def connect_rollout_engines(self, rollout_engines, rollout_tp_size=1):
         """Create Gloo IPC groups for weight sync (following slime)."""
         import torch.distributed as dist

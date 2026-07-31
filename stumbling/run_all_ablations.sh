@@ -30,6 +30,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="${SCRIPT_DIR}/logs"
 mkdir -p "${LOG_DIR}"
 
+# Drop Homebrew from PATH. Its binutils (as/ld) use brew's OWN loader
+# (~/.linuxbrew/lib/ld.so), which does not search /lib64. sglang's sleep
+# feature (--rollout_enable_sleep / --teacher_enable_sleep) sets
+# LD_PRELOAD=torch_memory_saver_hook_mode_preload.abi3.so, and that .so has
+# NEEDED libcuda.so.1. Every compiler subprocess inherits LD_PRELOAD, so
+# brew's `as` dies with "libcuda.so.1: cannot open shared object file" during
+# the triton/sgl-kernel JIT build -> rollout sglang server dies -> run fails
+# with "Server process terminated unexpectedly". /usr/bin/as resolves it fine.
+# Exported, so the run_stumb_*.sh children inherit it.
+export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '/.linuxbrew/' | paste -sd:)
+
+# Keep compiler temp off NFS. Default TMPDIR was ~/.cache/tmp (NFS) and ran
+# out of inodes under the gcc/triton object churn; /tmp is local NVMe.
+export TMPDIR="/tmp/${USER:-sroydip1}-tmp"
+mkdir -p "${TMPDIR}"
+
 chmod +x "${SCRIPT_DIR}"/run_stumb_top_freq.sh \
          "${SCRIPT_DIR}"/run_stumb_top_meanloss.sh \
          "${SCRIPT_DIR}"/run_stumb_gradmag.sh \
@@ -54,6 +70,13 @@ run_one() {
     echo "=== Skipping ${name} -- already marked done (${marker}). FORCE_RERUN=1 to redo. ==="
     return 0
   fi
+
+  # Ray writes ~5GB of actor logs per run under its temp dir and never prunes
+  # old sessions. /tmp is only 12GB, so three runs filled it and every run after
+  # that died in 8s with "OSError: [Errno 28] No space left on device" while
+  # creating its session dir. Nothing is live here (each run_stumb_*.sh does
+  # `ray stop --force` before `ray start`), so dropping the tree is safe.
+  rm -rf "/tmp/ray_${USER:-sroydip1}" 2>/dev/null || true
 
   echo "=== Starting ${name} at $(date) -- log: ${log} ==="
   if "$@" > "${log}" 2>&1; then
