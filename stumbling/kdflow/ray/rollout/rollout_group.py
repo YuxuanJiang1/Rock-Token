@@ -4,6 +4,7 @@ import io
 import logging
 import multiprocessing
 import random
+import signal
 import socket
 import time
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -339,7 +340,22 @@ class RolloutActorGroup:
         # Wait for router to be ready
         time.sleep(3)
         if not process.is_alive():
-            raise RuntimeError("SGLang router process died during startup")
+            process.join()
+            exitcode = process.exitcode
+            if exitcode is not None and exitcode < 0:
+                try:
+                    cause = f"killed by signal {signal.Signals(-exitcode).name} ({-exitcode})"
+                except ValueError:
+                    cause = f"killed by signal {-exitcode}"
+            else:
+                cause = f"exited with code {exitcode}"
+            raise RuntimeError(
+                f"SGLang router process died during startup ({cause}). "
+                "Check the output above for a traceback/panic from the router "
+                "subprocess itself (e.g. port already in use, sglang_router "
+                "version mismatch) -- this wrapper only observes that it died, "
+                "not why."
+            )
 
         logger.info(f"SGLang router launched successfully at {RolloutActorGroup._format_host(host)}:{port}")
         return process
