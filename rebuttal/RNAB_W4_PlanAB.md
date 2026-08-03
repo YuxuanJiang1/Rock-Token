@@ -1,3 +1,9 @@
+> **SUPERSEDED.** Written before the real Rock-Freeze checkpoint finished. The actual outcome
+> (Rock-Freeze scored lowest of all 8 conditions, no pairwise gap statistically credible at n=3) does
+> not match any of the three bracketed scenarios below. The real, paste-ready final reply is in
+> `RNAB_W4.md` ("Final rebuttal reply" section); full statistics in `RNAB_W4_RESULTS_ANALYSIS.md`.
+> Kept here for process history only — do not paste from this file.
+
 # Reviewer RNAB — W4 final response: Plan A / Plan B
 
 Two ready-to-paste versions of the W4 reply, differing only in whether the matched-condition
