@@ -10,17 +10,17 @@ STUDENT_ID = "RockToken/qwen3_30b_a3b_to_4b_onpolicy_math_following5k"
 TEACHER_ID = "Qwen/Qwen3-30B-A3B-Instruct-2507"
 SAMPLE_SIZE = 10
 MAX_NEW_TOKENS = 256
-OUTPUT_FILE = "/workspace/output_inspection.json"
+OUTPUT_FILE = "output_inspection.json"
 
 # --- Load Tokenizer and Models ---
 print("Loading Tokenizer and Models...")
-tokenizer = AutoTokenizer.from_pretrained(STUDENT_ID, cache_dir="/workspace/huggingface_cache")
+tokenizer = AutoTokenizer.from_pretrained(STUDENT_ID, cache_dir=None)
 
 student_model = AutoModelForCausalLM.from_pretrained(
     STUDENT_ID,
     device_map="auto",
     dtype=torch.bfloat16,
-    cache_dir="/workspace/huggingface_cache"
+    cache_dir=None
 )
 
 quant_config = BitsAndBytesConfig(
@@ -31,12 +31,12 @@ teacher_model = AutoModelForCausalLM.from_pretrained(
     TEACHER_ID,
     device_map="auto",
     quantization_config=quant_config,
-    cache_dir="/workspace/huggingface_cache"
+    cache_dir=None
 )
 
 # --- Load Dataset ---
 print(f"Sampling {SAMPLE_SIZE} problems from MATH-500...")
-dataset = load_dataset("HuggingFaceH4/MATH-500", split="test", cache_dir="/workspace/huggingface_cache")
+dataset = load_dataset("HuggingFaceH4/MATH-500", split="test", cache_dir=None)
 sampled_dataset = dataset.shuffle(seed=42).select(range(SAMPLE_SIZE))
 
 # --- Processing Loop ---

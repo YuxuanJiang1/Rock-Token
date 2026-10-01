@@ -52,7 +52,7 @@ model_grp.add_argument(
 )
 model_grp.add_argument(
     "--cache-dir",
-    default="/workspace/hf_cache",
+    default=None,
     metavar="DIR",
     help="HuggingFace cache directory.",
 )

@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 # snapshot_download(
 #     repo_id="organization/model-name",
-#     local_dir="/workspace/my_model_folder",
+#     local_dir="./models/student",
 #     local_dir_use_symlinks=False # Set to False so it doesn't create symlinks to ~/.cache
 # )
 
@@ -17,18 +17,18 @@ STUDENT_ID = "RockToken/qwen3_30b_a3b_to_4b_onpolicy_math_following5k"
 TEACHER_ID = "Qwen/Qwen3-30B-A3B-Instruct-2507"
 SAMPLE_SIZE = 100
 MAX_NEW_TOKENS = 256
-OUTPUT_FILE = "/workspace/aggregated_rock_token_stats.pt"
+OUTPUT_FILE = "aggregated_rock_token_stats.pt"
 
 # --- 1. Load Tokenizer and Models ---
 print("Loading Tokenizer and Models...")
-tokenizer = AutoTokenizer.from_pretrained(STUDENT_ID, cache_dir="/workspace/huggingface_cache")
+tokenizer = AutoTokenizer.from_pretrained(STUDENT_ID, cache_dir=None)
 
 # Student: Load in bfloat16
 student_model = AutoModelForCausalLM.from_pretrained(
     STUDENT_ID,
     device_map="auto",
     torch_dtype=torch.bfloat16,
-    cache_dir="/workspace/huggingface_cache"
+    cache_dir=None
 )
 
 # Teacher: Load in 4-bit to save VRAM
@@ -40,12 +40,12 @@ teacher_model = AutoModelForCausalLM.from_pretrained(
     TEACHER_ID,
     device_map="auto",
     quantization_config=quant_config,
-    cache_dir="/workspace/huggingface_cache"
+    cache_dir=None
 )
 
 # --- 2. Load Dataset ---
 print(f"Sampling {SAMPLE_SIZE} problems from MATH-500...")
-dataset = load_dataset("HuggingFaceH4/MATH-500", split="test", cache_dir="/workspace/huggingface_cache")
+dataset = load_dataset("HuggingFaceH4/MATH-500", split="test", cache_dir=None)
 sampled_dataset = dataset.shuffle(seed=42).select(range(SAMPLE_SIZE))
 
 # --- 3. Global Trackers for Phase A ---

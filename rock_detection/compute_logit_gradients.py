@@ -40,6 +40,8 @@ LOGIT_CHUNK_SIZE = 128  # positions per chunk during gradient computation
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--student",  choices=list(STUDENT_MODELS), default="onpolicy")
+parser.add_argument("--student-id", help="Override preset with your checkpoint")
+parser.add_argument("--teacher-id", default=TEACHER_ID)
 parser.add_argument("--samples",  type=int, default=500)
 parser.add_argument("--hardware", choices=["single_96gb", "dual_40gb"], default="single_96gb")
 parser.add_argument("--occurrences-file", required=True,
@@ -47,7 +49,8 @@ parser.add_argument("--occurrences-file", required=True,
 parser.add_argument("--output-file", default=None)
 args = parser.parse_args()
 
-STUDENT_ID  = STUDENT_MODELS[args.student]
+STUDENT_ID  = args.student_id or STUDENT_MODELS[args.student]
+TEACHER_ID = args.teacher_id
 SAMPLE_SIZE = args.samples
 suffix      = "_unrestricted" if "_unrestricted" in args.occurrences_file else ""
 OUTPUT_FILE = args.output_file or f"logit_gradients_{args.student}_n{SAMPLE_SIZE}{suffix}.pt"

@@ -2,7 +2,7 @@ import torch
 from transformers import AutoTokenizer
 
 # --- Configuration ---
-PT_FILE = "/workspace/aggregated_rock_token_stats.pt"
+PT_FILE = "aggregated_rock_token_stats.pt"
 TOKENIZER_ID = "RockToken/qwen3_30b_a3b_to_4b_onpolicy_math_following5k"
 TOP_K = 50
 

@@ -1,0 +1,22 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+runchaoli1*
+# Generated files
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+wandb/
+ray_results/
+eval_results/
+outputs/
+checkpoints/
+*.pt
+*.safetensors
+*.log

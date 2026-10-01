@@ -71,12 +71,12 @@ cd Rock-Token
 
 **Analyze tokens.** Follow the [analysis guide](rock_detection/README.md) to collect per-token KL statistics, select token sets, compare checkpoints, and reproduce diagnostic plots. The default configuration uses a Qwen3-30B-A3B-Instruct teacher, Qwen3-4B student checkpoints, and MATH-500 prompts. Some configured checkpoints are private; obtain access or supply your own compatible checkpoint before running collection.
 
-**Run distillation.** Use the [KDFlow setup instructions](KDFlow_localopd/README.md) and inspect the [OPD launch script](KDFlow_localopd/run_localopd.sh). The [`stumbling/`](stumbling/) variant implements selective loss masking. These are research launch configurations: adapt the Python/CUDA paths, model and dataset locations, GPU settings, and output directories to your environment. The launch scripts also restart Ray and terminate existing Ray/SGLang processes, so review those commands before using a shared machine. Token-ID lists must match the model's tokenizer.
+**Run distillation.** Use the [KDFlow setup instructions](KDFlow_localopd/README.md) and inspect the [OPD launch script](KDFlow_localopd/run_localopd.sh). The [`stumbling/`](stumbling/) variant implements selective loss masking. The launchers accept environment variables for checkpoint and dataset paths and initialize Ray through the trainer, without terminating other processes. Token-ID lists must match the model's tokenizer. See the [public usage guide](docs/USAGE.md) for complete examples and release limitations.
 
-**Evaluate a checkpoint.** Follow the [evaluation guide](evaluation/README.md). After installing its dependencies and setting `MODEL` in the script, run from the repository root:
+**Evaluate a checkpoint.** Follow the [evaluation guide](evaluation/README.md). After installing its dependencies, run from the repository root:
 
 ```bash
-bash evaluation/run_eval_vllm.sh
+MODEL=/path/to/checkpoint bash evaluation/run_eval_vllm.sh
 ```
 
 The evaluation scripts cover **AIME 2024, AIME 2025, and HMMT February 2025**, with answer extraction and exact-match scoring. See the guide for sampling settings and aggregation over three seeds.

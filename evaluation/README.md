@@ -25,22 +25,25 @@ The `tasks/` directory contains custom [lm-evaluation-harness](https://github.co
 ### With vLLM backend (recommended, 2× A100 80 GB)
 
 ```bash
-bash evaluation/run_eval_vllm.sh
+MODEL=/path/to/your/checkpoint bash evaluation/run_eval_vllm.sh
 ```
 
-Edit `MODEL` at the top of the script to point to your checkpoint, e.g.:
+Supply the checkpoint and output directory through environment variables, e.g.:
 
 ```bash
-MODEL=/path/to/your/checkpoint
+export MODEL=/path/to/your/checkpoint
+export EVAL_OUT=./eval_results/my_run
 ```
 
 The script runs **3 independent seeds** (59, 76, 93) and reports per-task accuracy plus mean ± std across runs.
 
-### With HuggingFace backend (single GPU)
+### Evaluate a baseline checkpoint (vLLM)
 
 ```bash
-bash evaluation/run_eval_base.sh
+MODEL=/path/to/base/checkpoint bash evaluation/run_eval_base.sh
 ```
+
+Both launchers use vLLM with two-way tensor parallelism and explicitly load the task configurations from this repository. Use separate output directories for different checkpoints and experiments.
 
 ## Output
 

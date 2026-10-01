@@ -38,10 +38,16 @@ pip install torch transformers datasets accelerate bitsandbytes \
 
 # (server) for the data-collection scripts
 export HF_TOKEN=<your-token>     # required for private RockToken checkpoints
-export HF_HOME=/workspace/hf_cache   # so cache_dir and HF_HOME agree
+export HF_HOME="$HOME/.cache/huggingface"  # optional cache location
 ```
 
 Server requirements: a single 96 GB GPU (e.g. H100) is sufficient for the unrestricted run with `MAX_NEW_TOKENS=4096`. A two-GPU 40 GB setup also works (use `--hardware dual_40gb`).
+
+## Public checkpoint configuration
+
+The paper checkpoint presets below are historical identifiers, not a release of model weights. Use `--student-id /path/to/your/checkpoint` and `--teacher-id <model-id>` with `rock_server.py` or `compute_logit_gradients.py` to supply your own models. Preserve matching tokenizers and vocabulary semantics. Use `--output-tag onpolicy` when downstream analysis scripts expect the original filenames.
+
+The older `rock.py` and `inspect_*.py` utilities retain paper-specific checkpoint IDs; adapt their model configuration before use. The supported collection entry point is `rock_server.py`. See [public usage](../docs/USAGE.md).
 
 ## End-to-end pipeline
 
@@ -57,7 +63,7 @@ python rock_server.py --student onpolicy --samples 500 --hardware single_96gb \
 
 # Same for off-policy and the 10k checkpoint
 python rock_server.py --student offpolicy    --samples 500 --unrestricted
-python rock_server.py --student onpolicy_10k --samples 500 --unrestricted
+python rock_server.py --student-id /path/to/late-checkpoint --output-tag onpolicy_10k --samples 500 --unrestricted
 ```
 
 Outputs: `rock_token_occurrences_<student>_n<N>[_unrestricted].pt` containing per-position records and aggregated frequency/KL stats. ~50 MB per run for n=500 unrestricted.

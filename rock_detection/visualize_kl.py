@@ -1,7 +1,7 @@
 import json
 import sys
 
-INPUT_FILE = "/workspace/output_inspection.json"
+INPUT_FILE = "output_inspection.json"
 TOP_K_TOKENS = 10  # highlight this many high-KL tokens per sample
 BAR_MAX_WIDTH = 30  # max width of the KL bar in characters
 
