@@ -173,7 +173,7 @@ If disk is tight, the gradient `.pt` can be written in bf16 (halves size, neglig
 
 ## Citation
 
-Pending paper. Working concept: *"Rock tokens and the gradient-alignment view of on-policy distillation."*
+See the [paper and BibTeX entry in the project homepage](../README.md#citation): *Cornerstones or Stumbling Blocks? Deciphering the Rock Tokens in On-Policy Distillation*, accepted to NeurIPS 2026.
 
 ## License
 

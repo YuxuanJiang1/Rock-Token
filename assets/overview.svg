@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+<title id="title">Rock Tokens: high loss does not always mean high learning value</title>
+<desc id="desc">Identify persistent student-teacher mismatch, investigate gradient dynamics and token knockouts, and test selective loss masking.</desc>
+<rect width="1200" height="360" rx="24" fill="#F5F7FC"/>
+<g font-family="Arial, Helvetica, sans-serif">
+<text x="40" y="51" fill="#64748B" font-size="15" font-weight="700" letter-spacing="2">ROCK TOKEN · NEURIPS 2026</text>
+<text x="40" y="99" fill="#14213D" font-size="32" font-weight="700">High loss ≠ High learning value</text>
+<text x="40" y="132" fill="#475569" font-size="18">Which student–teacher disagreements are actually worth learning?</text>
+<rect x="40" y="167" width="350" height="151" rx="16" fill="#FFF1E8" stroke="#F6C7A8"/>
+<rect x="425" y="167" width="350" height="151" rx="16" fill="#EEF2FF" stroke="#C7D2FE"/>
+<rect x="810" y="167" width="350" height="151" rx="16" fill="#ECFDF5" stroke="#A7E2CD"/>
+<g font-size="15" font-weight="700"><text x="62" y="198" fill="#B45309">01 / IDENTIFY</text><text x="447" y="198" fill="#4F46E5">02 / INVESTIGATE</text><text x="832" y="198" fill="#047857">03 / INTERVENE</text></g>
+<g font-size="23" font-weight="700" fill="#14213D"><text x="62" y="235">Persistent mismatch</text><text x="447" y="235">Do these tokens matter?</text><text x="832" y="235">Selective supervision</text></g>
+<g font-size="17" fill="#475569"><text x="62" y="267">Some token losses remain high</text><text x="62" y="292">even after distillation.</text><text x="447" y="267">Study gradients and knock out</text><text x="447" y="292">tokens to test their contribution.</text><text x="832" y="267">Mask selected loss terms;</text><text x="832" y="292">compare against random masking.</text></g>
+<g fill="#64748B"><path d="M397 235h13v-5l9 9-9 9v-5h-13z"/><path d="M782 235h13v-5l9 9-9 9v-5h-13z"/></g>
+</g></svg>
